@@ -173,6 +173,23 @@ const CAT_TYPES = [
         desc: '誰もが認める最強の男の子',
         size: 65,
         kb: 10,
+    },
+    {
+        id: 'daizo',
+        name: '大造じいさん',
+        emoji: '👴',
+        cost: 450,
+        cooldown: 5.0,
+        hp: 250,
+        atk: 60,
+        speed: 2.0,
+        range: 35,
+        attackSpeed: 1.2,
+        color: '#4ecdc4',
+        desc: '狩人の知恵で教頭を狙う（教頭専用・城にも無効）',
+        size: 30,
+        kb: 3,
+        antiMetal: true,
     }
 ];
 
@@ -208,6 +225,9 @@ const ENEMY_TYPES = [
     },
     {
         id: 'robot',
+        isBoss: true,
+        title: '鉄壁の学習ロボ',
+        quote: '全データ解析完了。排除シマス！',
         name: 'みさき',
         emoji: '🤖',
         hp: 300,
@@ -236,6 +256,9 @@ const ENEMY_TYPES = [
     },
     {
         id: 'dragon',
+        isBoss: true,
+        title: '暴虐の火竜',
+        quote: 'すべて焼き尽くしてやる！',
         name: 'もとこ',
         emoji: '🐉',
         hp: 1500,
@@ -250,6 +273,9 @@ const ENEMY_TYPES = [
     },
     {
         id: 'metal_dog',
+        isBoss: true,
+        title: '鋼鉄の教頭',
+        quote: '校則第１条！全員グラウンド１０周！',
         name: 'きょーとー',
         emoji: '🐢',
         hp: 45,
@@ -265,6 +291,9 @@ const ENEMY_TYPES = [
     },
     {
         id: 'sniper',
+        isBoss: true,
+        title: '天空の校長',
+        quote: '皆さん、静粛にしなさい！話は長いですぞ！',
         name: 'こーちょー',
         emoji: '🦅',
         hp: 150,
@@ -291,6 +320,9 @@ const ENEMY_TYPES = [
         money: 2000,
         kb: 1,
         requiresItem: true, // アイテムでのみ倒せる
+        isBoss: true,
+        title: '伝説の黒猩々',
+        quote: 'ウホッ！バナナを持ってきたヤツはおらんか！',
     }
 ];
 
@@ -532,11 +564,265 @@ const STAGES = [
     },
 ];
 
+// ===== ５年生大戦争２ 新ステージ名設定 =====
+const NEW_STAGE_NAMES = [
+    '桜舞う校門前',
+    '放課後の運動場',
+    '魔の算数テスト',
+    '争奪！給食の揚げパン',
+    '真冬の持久走大会',
+    '雨の日の体育館',
+    '怪談！夜の理科室',
+    '白熱の運動会・騎馬戦',
+    '職員室の呼び出し',
+    '長すぎる校長講話',
+    '嵐の林間学校',
+    '大掃除のワックスがけ',
+    '伝説のバナナ争奪戦',
+    '５年生最後の通知表',
+    '５年生の修了式〜そして伝説へ〜'
+];
+NEW_STAGE_NAMES.forEach((name, idx) => {
+    if (STAGES[idx]) STAGES[idx].name = name;
+});
+
+// ===== 宇宙テーマのタイトル画面演出 =====
+function applyCosmicTitleTheme() {
+    const titleScreen = document.getElementById('title-screen');
+    if (!titleScreen) return;
+
+    // 宇宙スタイルのCSS注入
+    const style = document.createElement('style');
+    style.id = 'cosmic-theme-styles';
+    style.textContent = `
+        /* ===== 不要なゲーム画面CSSを無効化 =====
+            width: 100vw !important;
+            height: 100vh !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .screen {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+        }
+        #battle-screen {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+        }
+        #game-hud {
+            flex-shrink: 0 !important;
+            padding: 6px 12px !important;
+        }
+        #game-canvas {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            width: 100% !important;
+            display: block !important;
+        }
+        #unit-panel {
+            flex-shrink: 0 !important;
+            padding: 6px 12px !important;
+            box-sizing: border-box !important;
+        }
+        .unit-buttons {
+            padding: 2px 0 !important;
+        }
+        .unit-btn {
+            min-width: 70px !important;
+            padding: 5px 8px !important;
+        }
+        .panel-controls {
+            flex-shrink: 0 !important;
+        }
+        */ #title-screen {
+            background: radial-gradient(circle at 50% 40%, #1a103c 0%, #0d0826 45%, #050314 100%) !important;
+            overflow: hidden !important;
+        }
+        .title-bg {
+            display: none !important;
+        }
+        #cosmic-title-canvas {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none !important;
+            z-index: 1 !important;
+        }
+        .title-content {
+            position: relative !important;
+            z-index: 10 !important;
+        }
+        .title-text {
+            color: #ffffff !important;
+            text-shadow: 
+                0 0 10px rgba(0, 255, 255, 0.9),
+                0 0 25px rgba(138, 43, 226, 0.9),
+                0 0 45px rgba(255, 0, 128, 0.7) !important;
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            color: rgba(200, 225, 255, 0.9) !important;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6) !important;
+        }
+        #title-screen .btn-main {
+            background: linear-gradient(135deg, #6c5ce7 0%, #0984e3 50%, #d63031 100%) !important;
+            box-shadow: 0 0 25px rgba(108, 92, 231, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.4) !important;
+            border: 2px solid rgba(255, 255, 255, 0.6) !important;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // 宇宙Canvas
+    let canvas = document.getElementById('cosmic-title-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'cosmic-title-canvas';
+        titleScreen.insertBefore(canvas, titleScreen.firstChild);
+    }
+
+    const ctx = canvas.getContext('2d');
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    });
+
+    // 星空
+    const stars = [];
+    for (let i = 0; i < 100; i++) {
+        stars.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            size: Math.random() < 0.8 ? (0.8 + Math.random() * 1.5) : (2.4 + Math.random() * 2),
+            color: ['#ffffff', '#81ecec', '#a29bfe', '#ffeaa7', '#fd79a8'][Math.floor(Math.random() * 5)],
+            speed: 0.15 + Math.random() * 0.35,
+            phase: Math.random() * Math.PI * 2
+        });
+    }
+
+    // 宇宙オブジェクト（惑星・UFOなど）
+    const spaceObjects = [
+        { emoji: '🪐', x: width * 0.12, y: height * 0.22, size: 52, vx: 0.05, vy: 0.02 },
+        { emoji: '🌍', x: width * 0.86, y: height * 0.28, size: 44, vx: -0.04, vy: 0.03 },
+        { emoji: '🛸', x: width * 0.78, y: height * 0.76, size: 38, vx: -0.10, vy: -0.04 },
+        { emoji: '🌙', x: width * 0.22, y: height * 0.78, size: 40, vx: 0.06, vy: -0.02 },
+    ];
+
+    // 流れ星
+    let shootingStar = null;
+    let nextShootingStar = 1.5;
+
+    function animateCosmicBg() {
+        if (!document.getElementById('title-screen') || document.getElementById('title-screen').style.display === 'none') {
+            requestAnimationFrame(animateCosmicBg);
+            return;
+        }
+
+        ctx.clearRect(0, 0, width, height);
+        const time = performance.now() / 1000;
+
+        // 星空描画
+        for (const star of stars) {
+            const alpha = 0.25 + 0.75 * Math.abs(Math.sin(time * star.speed * 2 + star.phase));
+            ctx.fillStyle = star.color;
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+
+            star.y += star.speed * 0.15;
+            if (star.y > height) star.y = 0;
+        }
+
+        // 浮遊惑星
+        for (const obj of spaceObjects) {
+            obj.x += obj.vx;
+            obj.y += obj.vy;
+            if (obj.x < -60) obj.x = width + 60;
+            if (obj.x > width + 60) obj.x = -60;
+            if (obj.y < -60) obj.y = height + 60;
+            if (obj.y > height + 60) obj.y = -60;
+
+            ctx.save();
+            ctx.globalAlpha = 0.88;
+            ctx.font = `${obj.size}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#8a2be2';
+            ctx.shadowBlur = 18;
+            ctx.fillText(obj.emoji, obj.x, obj.y);
+            ctx.restore();
+        }
+
+        // 流れ星
+        nextShootingStar -= 0.016;
+        if (nextShootingStar <= 0 && !shootingStar) {
+            shootingStar = {
+                x: Math.random() * width * 0.8,
+                y: Math.random() * height * 0.4,
+                len: 120 + Math.random() * 80,
+                speed: 16 + Math.random() * 8,
+                angle: Math.PI / 4 + (Math.random() - 0.5) * 0.2,
+                life: 1.0
+            };
+            nextShootingStar = 2.5 + Math.random() * 3.5;
+        }
+
+        if (shootingStar) {
+            shootingStar.x += Math.cos(shootingStar.angle) * shootingStar.speed;
+            shootingStar.y += Math.sin(shootingStar.angle) * shootingStar.speed;
+            shootingStar.life -= 0.025;
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, shootingStar.life);
+            const tailX = shootingStar.x - Math.cos(shootingStar.angle) * shootingStar.len;
+            const tailY = shootingStar.y - Math.sin(shootingStar.angle) * shootingStar.len;
+            const starGrad = ctx.createLinearGradient(shootingStar.x, shootingStar.y, tailX, tailY);
+            starGrad.addColorStop(0, '#ffffff');
+            starGrad.addColorStop(0.3, '#00ffff');
+            starGrad.addColorStop(1, 'transparent');
+            ctx.strokeStyle = starGrad;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(shootingStar.x, shootingStar.y);
+            ctx.lineTo(tailX, tailY);
+            ctx.stroke();
+            ctx.restore();
+
+            if (shootingStar.life <= 0) shootingStar = null;
+        }
+
+        ctx.globalAlpha = 1.0;
+        requestAnimationFrame(animateCosmicBg);
+    }
+
+    animateCosmicBg();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyCosmicTitleTheme);
+} else {
+    applyCosmicTitleTheme();
+}
+
 // ===== Game State =====
 class GameState {
     constructor() {
         this.screen = 'title';
         this.clearedStages = this.loadProgress();
+        this.globalStats = this.loadStats();
         this.currentStage = null;
     }
 
@@ -555,12 +841,36 @@ class GameState {
         } catch { }
     }
 
+    loadStats() {
+        try {
+            const data = localStorage.getItem('nyanko_stats');
+            return data ? JSON.parse(data) : { unitsSpawned: 0, moneySpent: 0, cannonUsed: 0, bananaUsed: 0, playTimeTotal: 0 };
+        } catch {
+            return { unitsSpawned: 0, moneySpent: 0, cannonUsed: 0, bananaUsed: 0, playTimeTotal: 0 };
+        }
+    }
+
+    saveStats() {
+        try {
+            localStorage.setItem('nyanko_stats', JSON.stringify(this.globalStats));
+        } catch { }
+    }
+
     clearStage(stageId, stars) {
         const prev = this.clearedStages[stageId] || 0;
         if (stars > prev) {
             this.clearedStages[stageId] = stars;
             this.saveProgress();
         }
+    }
+
+    resetData() {
+        this.clearedStages = {};
+        this.globalStats = { unitsSpawned: 0, moneySpent: 0, cannonUsed: 0, bananaUsed: 0, playTimeTotal: 0 };
+        try {
+            localStorage.removeItem('nyanko_progress');
+            localStorage.removeItem('nyanko_stats');
+        } catch { }
     }
 
     isStageUnlocked(stageId) {
@@ -599,6 +909,9 @@ class Unit {
         this.walkCycle = Math.random() * Math.PI * 2; // Randomize walk cycle start
         this.yOffset = (Math.random() - 0.5) * 16; // Random visual Y offset (depth)
         this.damageDealtInSwing = false;
+        this.isBoss = !isCat && !!type.isBoss;
+        this.isEnraged = false;
+        this.enrageAuraTimer = 0;
     }
 
     getBounds() {
@@ -642,10 +955,19 @@ class Battle {
         this.waveSpawnTimers = [];
         this.initWaves();
 
+        // Stats tracking
+        this.stats = { unitsSpawned: 0, moneySpent: 0, cannonUsed: 0, bananaUsed: 0 };
+
         // Visual
         this.bgOffset = 0;
-        this.clouds = this.generateClouds();
+        this.stars = this.generateStars();
+        this.planets = this.generatePlanets();
+        this.shootingStar = null;
+        this.shootingStarTimer = 2 + Math.random() * 4;
         this.particles = [];
+        this.screenShake = 0;
+        this.bossCutin = null;
+        this.bossCutinSeen = new Set();
     }
 
     initWaves() {
@@ -657,18 +979,30 @@ class Battle {
         }));
     }
 
-    generateClouds() {
-        const clouds = [];
-        for (let i = 0; i < 6; i++) {
-            clouds.push({
+    generateStars() {
+        const stars = [];
+        const count = 120;
+        for (let i = 0; i < count; i++) {
+            stars.push({
                 x: Math.random() * 2000,
-                y: 20 + Math.random() * 80,
-                w: 60 + Math.random() * 80,
-                speed: 0.2 + Math.random() * 0.3,
-                opacity: 0.3 + Math.random() * 0.4,
+                y: Math.random() * 500,
+                size: Math.random() < 0.85 ? (0.8 + Math.random() * 1.4) : (2.4 + Math.random() * 1.6),
+                baseAlpha: 0.35 + Math.random() * 0.65,
+                twinkleSpeed: 1.5 + Math.random() * 4.0,
+                twinklePhase: Math.random() * Math.PI * 2,
+                color: Math.random() < 0.25 ? '#ffeaa7' : Math.random() < 0.45 ? '#81ecec' : Math.random() < 0.65 ? '#fd79a8' : '#ffffff',
+                speed: 0.04 + Math.random() * 0.12,
             });
         }
-        return clouds;
+        return stars;
+    }
+
+    generatePlanets() {
+        return [
+            { x: 260, y: 75, radius: 40, type: 'ringed', color1: '#6c5ce7', color2: '#a29bfe', ringColor: '#ffeaa7' },
+            { x: 920, y: 110, radius: 28, type: 'crater', color1: '#0984e3', color2: '#74b77c' },
+            { x: 1580, y: 65, radius: 22, type: 'moon', color1: '#dfe6e9', color2: '#b2bec3' }
+        ];
     }
 
     get fieldWidth() {
@@ -688,6 +1022,9 @@ class Battle {
         this.money -= type.cost;
         this.cooldowns[typeIndex] = type.cooldown;
 
+        this.stats.unitsSpawned++;
+        this.stats.moneySpent += type.cost;
+
         const unit = new Unit(type, true, this.playerBase.x + CONFIG.baseWidth + 20);
         this.catUnits.push(unit);
 
@@ -700,6 +1037,119 @@ class Battle {
         const type = ENEMY_TYPES[typeIndex];
         const unit = new Unit(type, false, this.enemyBase.x - CONFIG.baseWidth - 20, statMultiplier);
         this.enemyUnits.push(unit);
+        if (unit.isBoss && !this.bossCutinSeen.has(type.id)) {
+            this.bossCutinSeen.add(type.id);
+            this.triggerBossCutin(unit);
+        }
+    }
+
+    triggerBossCutin(bossUnit) {
+        this.bossCutin = {
+            unit: bossUnit,
+            timer: 0,
+            duration: 2.4,
+        };
+        this.screenShake = 1.2;
+    }
+
+    drawBossCutin() {
+        if (!this.bossCutin) return;
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const cut = this.bossCutin;
+        const progress = cut.timer / cut.duration;
+        const unit = cut.unit;
+        const type = unit.type;
+
+        let alpha = 1;
+        if (progress < 0.15) {
+            alpha = progress / 0.15;
+        } else if (progress > 0.8) {
+            alpha = (1 - progress) / 0.2;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+        // Dark dramatic overlay
+        const grad = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, w / 2);
+        grad.addColorStop(0, 'rgba(10, 0, 0, 0.65)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Warning striped bands
+        const bandH = 34;
+        const stripeTime = (cut.timer * 80) % 40;
+        ctx.fillStyle = '#ff1744';
+        ctx.fillRect(0, h * 0.16, w, bandH);
+        ctx.fillRect(0, h * 0.78, w, bandH);
+
+        ctx.save();
+        ctx.fillStyle = '#111111';
+        for (let x = -40 + stripeTime; x < w + 40; x += 30) {
+            ctx.beginPath();
+            ctx.moveTo(x, h * 0.16);
+            ctx.lineTo(x + 15, h * 0.16);
+            ctx.lineTo(x - 5, h * 0.16 + bandH);
+            ctx.lineTo(x - 20, h * 0.16 + bandH);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x, h * 0.78);
+            ctx.lineTo(x + 15, h * 0.78);
+            ctx.lineTo(x - 5, h * 0.78 + bandH);
+            ctx.lineTo(x - 20, h * 0.78 + bandH);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // Warning text
+        ctx.font = 'bold 15px "M PLUS Rounded 1c", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const blink = Math.floor(cut.timer * 8) % 2 === 0;
+        ctx.fillStyle = blink ? '#ffeaa7' : '#ffffff';
+        ctx.fillText('⚠️ WARNING ⚠️   STRONG ENEMY APPROACHING   ⚠️ WARNING ⚠️', w / 2, h * 0.16 + bandH / 2);
+        ctx.fillText('⚠️ WARNING ⚠️   強敵ボス出現！総員戦闘配備！   ⚠️ WARNING ⚠️', w / 2, h * 0.78 + bandH / 2);
+
+        // Center boss card
+        const cardY = h * 0.48;
+        const bounce = 1 + Math.sin(cut.timer * 10) * 0.08;
+        ctx.font = `${Math.floor(82 * bounce)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#ff1744';
+        ctx.shadowBlur = 30;
+        ctx.fillText(type.emoji, w / 2, cardY - 45);
+        ctx.shadowBlur = 0;
+
+        // Title
+        ctx.font = 'bold 18px "M PLUS Rounded 1c", sans-serif';
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 6;
+        ctx.fillText(`【 ${type.title || '強敵ボス'} 】`, w / 2, cardY + 22);
+
+        // Name
+        ctx.font = 'bold 36px "M PLUS Rounded 1c", sans-serif';
+        ctx.fillStyle = '#ff4757';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(type.name, w / 2, cardY + 62);
+        ctx.fillText(type.name, w / 2, cardY + 62);
+
+        // Quote
+        if (type.quote) {
+            ctx.font = 'italic bold 17px "M PLUS Rounded 1c", sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(`「${type.quote}」`, w / 2, cardY + 104);
+        }
+
+        ctx.restore();
     }
 
     addEffect(x, y, text, duration) {
@@ -722,6 +1172,15 @@ class Battle {
     update(dt) {
         if (this.paused || this.gameOver) return;
 
+        if (this.bossCutin) {
+            this.bossCutin.timer += dt;
+            if (this.bossCutin.timer >= this.bossCutin.duration) {
+                this.bossCutin = null;
+            }
+        }
+        if (this.screenShake > 0) {
+            this.screenShake = Math.max(0, this.screenShake - dt);
+        }
         dt *= this.speed;
         this.time += dt;
 
@@ -776,11 +1235,34 @@ class Battle {
             return e.timer < e.duration;
         });
 
-        // Update clouds
-        for (const cloud of this.clouds) {
-            cloud.x -= cloud.speed * this.speed;
-            if (cloud.x + cloud.w < 0) {
-                cloud.x = this.fieldWidth + 20;
+        // Update stars
+        for (const star of this.stars) {
+            star.x -= star.speed * 60 * dt;
+            if (star.x < 0) {
+                star.x = this.fieldWidth + 10;
+                star.y = Math.random() * (this.groundY * 0.95);
+            }
+        }
+
+        // Update shooting star
+        this.shootingStarTimer -= dt;
+        if (this.shootingStarTimer <= 0) {
+            this.shootingStar = {
+                x: this.fieldWidth * 0.3 + Math.random() * (this.fieldWidth * 0.7),
+                y: 10 + Math.random() * (this.groundY * 0.4),
+                vx: -(350 + Math.random() * 200),
+                vy: 160 + Math.random() * 120,
+                life: 0.5,
+                maxLife: 0.5,
+            };
+            this.shootingStarTimer = 3 + Math.random() * 5;
+        }
+        if (this.shootingStar) {
+            this.shootingStar.x += this.shootingStar.vx * dt;
+            this.shootingStar.y += this.shootingStar.vy * dt;
+            this.shootingStar.life -= dt;
+            if (this.shootingStar.life <= 0) {
+                this.shootingStar = null;
             }
         }
 
@@ -798,6 +1280,7 @@ class Battle {
         if (this.cannonTimer < this.cannonCooldown) return;
         this.cannonTimer = 0;
         this.cannonFiringTime = 0.6; // duration of laser beam
+        this.stats.cannonUsed++;
 
         // Huge screen-wide effect
         this.addEffect(this.fieldWidth / 2, this.groundY - 100, '🌋 5年生キャノン!! 🌋', 1.5);
@@ -834,6 +1317,8 @@ class Battle {
     useItem() {
         if (this.money < 1000) return;
         this.money -= 1000;
+        this.stats.bananaUsed++;
+        this.stats.moneySpent += 1000;
         this.addEffect(this.fieldWidth / 2, this.groundY - 150, '🍌 伝説のバナナ!! 🍌', 2.0);
 
         let hit = false;
@@ -853,17 +1338,7 @@ class Battle {
         }
 
         if (!hit) {
-            // Missed the boss, damage others
-            for (const opp of this.enemyUnits) {
-                if (opp.state !== 'dead') {
-                    opp.hp -= 2000;
-                    this.addDamageNumber(opp.x, this.groundY - opp.size, 2000, true);
-                    if (opp.hp <= 0) {
-                        opp.state = 'dead';
-                        opp.deathTimer = 0;
-                    }
-                }
-            }
+            this.addEffect(this.fieldWidth / 2, this.groundY - 100, '💨 アディルがいなかった…', 1.0);
         }
     }
 
@@ -938,8 +1413,14 @@ class Battle {
                         this.dealDamage(unit, target);
                     }
                     if (inBaseRange) {
-                        targetBase.hp = Math.max(0, targetBase.hp - unit.atk);
-                        this.addEffect(targetBase.x, this.groundY - 40, '💥', 0.3);
+                        let baseDmg = unit.atk;
+                        if (unit.type && unit.type.id === 'daizo') {
+                            baseDmg = 0; // 大造じいさんは基地にはダメージを与えられない
+                        }
+                        if (baseDmg > 0) {
+                            targetBase.hp = Math.max(0, targetBase.hp - baseDmg);
+                            this.addEffect(targetBase.x, this.groundY - 40, '💥', 0.3);
+                        }
                     }
                 }
 
@@ -985,11 +1466,37 @@ class Battle {
     }
 
     dealDamage(attacker, defender) {
-        const dmg = defender.type.requiresItem ? 0 : (defender.type.isMetal ? 1 : attacker.atk);
+        let dmg = attacker.atk;
+
+        // 大造じいさんはメタル属性（教頭）以外にはダメージを与えられない
+        if (attacker.type && attacker.type.id === 'daizo') {
+            if (!defender.type.isMetal) {
+                dmg = 0;
+            }
+        }
+
+        if (defender.type.requiresItem) {
+            dmg = 0;
+        } else if (defender.type.isMetal) {
+            if (attacker.type && attacker.type.antiMetal) {
+                dmg = attacker.atk * 3; // クリティカル大ダメージ
+                this.addEffect(defender.x, this.groundY - defender.size - 20, '⚡CRITICAL!', 1.0);
+            } else {
+                dmg = 1; // メタルには通常1ダメージ
+            }
+        }
 
         if (dmg > 0) {
             defender.hp -= dmg;
             this.addDamageNumber(defender.x, this.groundY - defender.size, dmg);
+            // Boss enrage at 50% HP
+            if (defender.isBoss && !defender.isEnraged && defender.hp > 0 && defender.hp <= defender.maxHp * 0.5) {
+                defender.isEnraged = true;
+                defender.speed *= 1.4;
+                defender.attackSpeed *= 0.65;
+                this.screenShake = 0.6;
+                this.addEffect(defender.x, this.groundY - defender.size - 25, '🔥 激怒！！ 🔥', 2.0);
+            }
         } else {
             this.addEffect(defender.x, this.groundY - defender.size / 2, '🛡️', 0.2);
         }
@@ -1017,6 +1524,13 @@ class Battle {
     }
 
     draw() {
+        this.ctx.save();
+        if (this.screenShake > 0) {
+            const mag = this.screenShake * 12;
+            const sx = (Math.random() - 0.5) * mag;
+            const sy = (Math.random() - 0.5) * mag;
+            this.ctx.translate(sx, sy);
+        }
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -1025,40 +1539,56 @@ class Battle {
         // Clear
         ctx.clearRect(0, 0, w, h);
 
-        // Sky gradient
+        // Sky - Cosmic deep space gradient
         const skyGrad = ctx.createLinearGradient(0, 0, 0, gy);
-        skyGrad.addColorStop(0, this.stage.bg);
-        skyGrad.addColorStop(1, this.lightenColor(this.stage.bg, 40));
+        skyGrad.addColorStop(0, '#060512');
+        skyGrad.addColorStop(0.6, '#0b0924');
+        skyGrad.addColorStop(1, '#161338');
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0, 0, w, gy);
 
-        // Clouds
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        for (const cloud of this.clouds) {
-            this.drawCloud(ctx, cloud.x, cloud.y, cloud.w, cloud.opacity);
-        }
+        // Nebula glow with stage color accent
+        ctx.save();
+        const nebulaGrad = ctx.createRadialGradient(w * 0.45, gy * 0.45, 20, w * 0.45, gy * 0.45, w * 0.55);
+        nebulaGrad.addColorStop(0, this.stage.bg + '40');
+        nebulaGrad.addColorStop(0.4, this.stage.bg + '15');
+        nebulaGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = nebulaGrad;
+        ctx.fillRect(0, 0, w, gy);
+        ctx.restore();
 
-        // Hills (bg decoration)
-        this.drawHills(ctx, w, gy);
+        // Stars & Shooting Star
+        this.drawStars(ctx, gy);
+        this.drawShootingStar(ctx);
 
-        // Ground
+        // Planets
+        this.drawPlanets(ctx);
+
+        // Moon mountains / asteroid horizon (bg decoration)
+        this.drawSpaceHills(ctx, w, gy);
+
+        // Ground - Lunar / Cosmic surface
         const groundGrad = ctx.createLinearGradient(0, gy, 0, h);
-        groundGrad.addColorStop(0, '#5daa3a');
-        groundGrad.addColorStop(0.3, '#4a8c2f');
-        groundGrad.addColorStop(1, '#3d7226');
+        groundGrad.addColorStop(0, '#242038');
+        groundGrad.addColorStop(0.35, '#19162a');
+        groundGrad.addColorStop(1, '#0e0c18');
         ctx.fillStyle = groundGrad;
         ctx.fillRect(0, gy, w, h - gy);
 
-        // Ground line detail
-        ctx.strokeStyle = '#6bc043';
-        ctx.lineWidth = 2;
+        // Ground line detail - Luminous cyan/neon glow
+        const lineGrad = ctx.createLinearGradient(0, 0, w, 0);
+        lineGrad.addColorStop(0, '#6c5ce7');
+        lineGrad.addColorStop(0.5, '#00d2d3');
+        lineGrad.addColorStop(1, '#a29bfe');
+        ctx.strokeStyle = lineGrad;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(0, gy);
         ctx.lineTo(w, gy);
         ctx.stroke();
 
-        // Draw grass tufts
-        this.drawGrass(ctx, w, gy);
+        // Moon craters & glowing cosmic stardust
+        this.drawSpaceGroundDetail(ctx, w, gy);
 
         // Bases
         this.drawBase(ctx, this.playerBase.x, gy, this.playerBase, true);
@@ -1106,6 +1636,11 @@ class Battle {
         }
 
         // Effects
+        // Boss Aura (over units)
+        for (const u of this.enemyUnits) {
+            if (u.isEnraged) this.drawEnragedAura(u);
+        }
+
         for (const effect of this.effects) {
             const alpha = 1 - (effect.timer / effect.duration);
             ctx.save();
@@ -1140,37 +1675,147 @@ class Battle {
         }
     }
 
-    drawCloud(ctx, x, y, w, opacity) {
+    drawStars(ctx, gy) {
+        for (const star of this.stars) {
+            const twinkle = 0.55 + 0.45 * Math.sin(this.time * star.twinkleSpeed + star.twinklePhase);
+            const alpha = star.baseAlpha * Math.max(0.2, twinkle);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = star.color;
+
+            // Star dot
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sparkle cross for larger stars
+            if (star.size > 2.0 && twinkle > 0.75) {
+                ctx.strokeStyle = star.color;
+                ctx.lineWidth = 1;
+                const len = star.size * 2.2;
+                ctx.beginPath();
+                ctx.moveTo(star.x - len, star.y);
+                ctx.lineTo(star.x + len, star.y);
+                ctx.moveTo(star.x, star.y - len);
+                ctx.lineTo(star.x, star.y + len);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+    }
+
+    drawShootingStar(ctx) {
+        if (!this.shootingStar) return;
+        const s = this.shootingStar;
+        const alpha = s.life / s.maxLife;
         ctx.save();
-        ctx.globalAlpha = opacity;
-        ctx.fillStyle = 'white';
-        const h = w * 0.4;
-        // Simple cloud shape with circles
+        ctx.globalAlpha = alpha;
+
+        const grad = ctx.createLinearGradient(s.x, s.y, s.x - s.vx * 0.15, s.y - s.vy * 0.15);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.3, '#74b9ff');
+        grad.addColorStop(1, 'transparent');
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.arc(x + w * 0.3, y + h * 0.6, h * 0.5, 0, Math.PI * 2);
-        ctx.arc(x + w * 0.5, y + h * 0.3, h * 0.6, 0, Math.PI * 2);
-        ctx.arc(x + w * 0.7, y + h * 0.5, h * 0.45, 0, Math.PI * 2);
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x - s.vx * 0.15, s.y - s.vy * 0.15);
+        ctx.stroke();
+
+        // Head glow
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
 
-    drawHills(ctx, w, gy) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    drawPlanets(ctx) {
+        for (const p of this.planets) {
+            ctx.save();
+            const x = (p.x + this.time * 0.6) % (this.canvas.width + 300) - 100;
+            const y = p.y;
+            const r = p.radius;
+
+            if (p.type === 'ringed') {
+                // Back half of ring
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(-0.35);
+                ctx.strokeStyle = p.ringColor + '88';
+                ctx.lineWidth = r * 0.35;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, r * 2.2, r * 0.55, 0, Math.PI, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+
+                // Planet sphere
+                const pGrad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+                pGrad.addColorStop(0, p.color2);
+                pGrad.addColorStop(0.7, p.color1);
+                pGrad.addColorStop(1, '#110b29');
+                ctx.fillStyle = pGrad;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Front half of ring
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(-0.35);
+                ctx.strokeStyle = p.ringColor;
+                ctx.lineWidth = r * 0.35;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, r * 2.2, r * 0.55, 0, 0, Math.PI);
+                ctx.stroke();
+                ctx.restore();
+            } else {
+                // Atmosphere glow
+                ctx.shadowColor = p.color1;
+                ctx.shadowBlur = 18;
+                const pGrad = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+                pGrad.addColorStop(0, p.color2);
+                pGrad.addColorStop(0.65, p.color1);
+                pGrad.addColorStop(1, '#080816');
+                ctx.fillStyle = pGrad;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Subtle craters
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+                ctx.beginPath();
+                ctx.arc(x + r * 0.2, y - r * 0.1, r * 0.22, 0, Math.PI * 2);
+                ctx.arc(x - r * 0.25, y + r * 0.3, r * 0.18, 0, Math.PI * 2);
+                ctx.arc(x + r * 0.35, y + r * 0.25, r * 0.14, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
+    drawSpaceHills(ctx, w, gy) {
+        // Far moon ridges
+        ctx.fillStyle = 'rgba(24, 20, 46, 0.85)';
         ctx.beginPath();
         ctx.moveTo(0, gy);
-        for (let x = 0; x <= w; x += 5) {
-            const y = gy - 30 * Math.sin(x * 0.005) - 20 * Math.sin(x * 0.01 + 1);
+        for (let x = 0; x <= w; x += 10) {
+            const y = gy - 40 * Math.sin(x * 0.003 + 1.2) - 25 * Math.sin(x * 0.008 + 2);
             ctx.lineTo(x, y);
         }
         ctx.lineTo(w, gy);
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+        // Near moon ridge
+        ctx.fillStyle = 'rgba(34, 29, 62, 0.95)';
         ctx.beginPath();
         ctx.moveTo(0, gy);
-        for (let x = 0; x <= w; x += 5) {
-            const y = gy - 50 * Math.sin(x * 0.003 + 2) - 25 * Math.sin(x * 0.008);
+        for (let x = 0; x <= w; x += 10) {
+            const y = gy - 24 * Math.sin(x * 0.006) - 14 * Math.sin(x * 0.015 + 0.5);
             ctx.lineTo(x, y);
         }
         ctx.lineTo(w, gy);
@@ -1178,19 +1823,34 @@ class Battle {
         ctx.fill();
     }
 
-    drawGrass(ctx, w, gy) {
-        ctx.strokeStyle = '#6bc043';
-        ctx.lineWidth = 1.5;
-        for (let x = 10; x < w; x += 25) {
-            const h = 5 + Math.sin(x * 0.3 + this.time) * 3;
+    drawSpaceGroundDetail(ctx, w, gy) {
+        // Moon craters on ground
+        ctx.fillStyle = 'rgba(14, 11, 24, 0.55)';
+        ctx.strokeStyle = 'rgba(120, 120, 180, 0.25)';
+        ctx.lineWidth = 1;
+        for (let x = 30; x < w; x += 75) {
+            const cx = x + Math.sin(x * 9) * 15;
+            const cy = gy + 14 + Math.cos(x * 3) * 9;
+            const rx = 10 + Math.sin(x) * 4;
+            const ry = 4 + Math.sin(x * 2) * 1.5;
+
             ctx.beginPath();
-            ctx.moveTo(x, gy);
-            ctx.lineTo(x - 2, gy - h);
+            ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fill();
             ctx.stroke();
+        }
+
+        // Luminous space dust / crystals
+        for (let x = 15; x < w; x += 45) {
+            const px = x + Math.cos(x * 7) * 10;
+            const py = gy + 6 + Math.sin(x * 5) * 4;
+            const twinkle = 0.5 + 0.5 * Math.sin(this.time * 3 + x);
+            ctx.fillStyle = x % 2 === 0
+                ? `rgba(0, 210, 211, ${0.45 * twinkle})`
+                : `rgba(255, 234, 167, ${0.45 * twinkle})`;
             ctx.beginPath();
-            ctx.moveTo(x + 3, gy);
-            ctx.lineTo(x + 5, gy - h * 0.8);
-            ctx.stroke();
+            ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
@@ -1410,6 +2070,45 @@ class Battle {
         return `rgb(${r}, ${g}, ${b})`;
     }
 
+    drawEnragedAura(unit) {
+        if (!unit.isEnraged || unit.state === 'dead') return;
+        const ctx = this.ctx;
+        const cx = unit.x;
+        const cy = this.groundY - unit.size / 2 + (unit.yOffset || 0);
+
+        ctx.save();
+        // Red glowing pulsating aura
+        const time = performance.now() / 1000;
+        const pulse = 1 + Math.sin(time * 8) * 0.2;
+        const radius = (unit.size * 0.85) * pulse;
+
+        const auraGrad = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
+        auraGrad.addColorStop(0, 'rgba(255, 68, 0, 0.55)');
+        auraGrad.addColorStop(0.7, 'rgba(255, 0, 0, 0.25)');
+        auraGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+
+        ctx.fillStyle = auraGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Flame emoji bouncing over head
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        const flameOffset = Math.sin(time * 12) * 5;
+        ctx.fillText('🔥', cx, cy - unit.size / 2 - 4 + flameOffset);
+        ctx.restore();
+    }
+
+    // Boss cutin and final restore
+    drawCutinAndRestore() {
+        if (this.bossCutin) {
+            this.drawBossCutin();
+        }
+        this.ctx.restore();
+    }
+
     resize() {
         this.playerBase.x = 40;
         this.enemyBase.x = this.canvas.width - 40;
@@ -1445,7 +2144,7 @@ class Game {
 
     createTitleParticles() {
         const container = document.getElementById('title-screen');
-        const emojis = ['🐱', '🐾', '⭐', '💖', '✨', '🎀', '🐟'];
+        const emojis = ['🐱', '🐾', '⭐', '✨', '🚀', '🪐', '🛸', '🌌', '🌠'];
         for (let i = 0; i < 20; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
@@ -1527,17 +2226,11 @@ class Game {
                 <div class="cooldown-overlay" id="cd-overlay-${i}"></div>
             `;
             btn.addEventListener('click', () => {
-                if (this.battle) {
-                    this.battle.spawnCat(i);
-                }
+                if (this.battle) this.battle.spawnCat(i);
             });
-
-            // Touch support
             btn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (this.battle) {
-                    this.battle.spawnCat(i);
-                }
+                if (this.battle) this.battle.spawnCat(i);
             });
 
             container.appendChild(btn);
@@ -1616,6 +2309,7 @@ class Game {
         if (this.battle) {
             this.battle.update(dt);
             this.battle.draw();
+            this.battle.drawCutinAndRestore();
             this.updateHUD();
             this.updateUnitButtons();
 
@@ -1660,7 +2354,50 @@ class Game {
             `
             : `<div>⏱️ 戦闘時間: ${timeStr}</div>`;
 
+        // Accumulate stats
+        this.state.globalStats.unitsSpawned += this.battle.stats.unitsSpawned;
+        this.state.globalStats.moneySpent += this.battle.stats.moneySpent;
+        this.state.globalStats.cannonUsed += this.battle.stats.cannonUsed;
+        this.state.globalStats.bananaUsed += this.battle.stats.bananaUsed;
+        this.state.globalStats.playTimeTotal += this.battle.time;
+        this.state.saveStats();
+
+        const endingBtn = document.getElementById('ending-btn');
+        if (isWin && this.battle.stage.id === 15) {
+            if (endingBtn) endingBtn.style.display = 'inline-block';
+        } else {
+            if (endingBtn) endingBtn.style.display = 'none';
+        }
+
         this.showScreen('result');
+    }
+
+    showEndRoll() {
+        this.showScreen('endroll');
+        const statsContent = document.getElementById('endroll-stats');
+        const stats = this.state.globalStats;
+        const timeStr = `${Math.floor(stats.playTimeTotal / 60)}分${String(Math.floor(stats.playTimeTotal % 60)).padStart(2, '0')}秒`;
+
+        statsContent.innerHTML = `
+            <h2>🎊 あなたの戦績 🎊</h2>
+            <div class="stats-list">
+                <p>🌟 プレイ時間: ${timeStr}</p>
+                <p>🎒 召喚した5年生: ${stats.unitsSpawned} 人</p>
+                <p>💰 使ったお金: ${Math.floor(stats.moneySpent)} 円</p>
+                <p>💥 キャノン発射回数: ${stats.cannonUsed} 回</p>
+                <p>🍌 バナナ使用回数: ${stats.bananaUsed} 回</p>
+            </div>
+        `;
+
+        // Start scrolling animation
+        const scroller = document.getElementById('endroll-scroll');
+        if (scroller) {
+            scroller.style.transform = 'translateY(100vh)';
+            scroller.style.transition = 'none';
+            scroller.offsetHeight; // force reflow
+            scroller.style.transition = 'transform 25s linear';
+            scroller.style.transform = 'translateY(-150%)';
+        }
     }
 
     // ===== Event Bindings =====
@@ -1669,6 +2406,16 @@ class Game {
         document.getElementById('start-btn').addEventListener('click', () => {
             this.showScreen('stage');
         });
+
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                if (confirm('本当にすべてのデータをリセットしますか？\n（クリア状況・戦績がすべて消去されます）')) {
+                    this.state.resetData();
+                    alert('データをリセットしました。');
+                }
+            });
+        }
 
         // Stage screen
         document.getElementById('back-to-title').addEventListener('click', () => {
@@ -1726,6 +2473,21 @@ class Game {
             this.showScreen('stage');
         });
 
+        const endingBtn = document.getElementById('ending-btn');
+        if (endingBtn) {
+            endingBtn.addEventListener('click', () => {
+                this.battle = null;
+                this.showEndRoll();
+            });
+        }
+
+        const endRollBackBtn = document.getElementById('endroll-back-btn');
+        if (endRollBackBtn) {
+            endRollBackBtn.addEventListener('click', () => {
+                this.showScreen('title');
+            });
+        }
+
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
             if (this.state.screen !== 'battle' || !this.battle) return;
@@ -1760,11 +2522,15 @@ class Game {
         const hud = document.getElementById('game-hud');
         const panel = document.getElementById('unit-panel');
 
-        const w = battle.clientWidth;
-        const h = battle.clientHeight - hud.clientHeight - panel.clientHeight;
+        const w = (battle && battle.clientWidth) || window.innerWidth;
+        const hudH = hud ? hud.offsetHeight : 45;
+        const panelH = panel ? panel.offsetHeight : 95;
+        const totalH = (battle && battle.clientHeight) || window.innerHeight;
+        const h = Math.max(120, totalH - hudH - panelH);
+        // canvas size
 
         this.canvas.width = w;
-        this.canvas.height = Math.max(h, 200);
+        this.canvas.height = h;
     }
 }
 
