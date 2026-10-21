@@ -276,6 +276,21 @@ const ENEMY_TYPES = [
         size: 30,
         money: 120,
         kb: 4,
+    },
+    {
+        id: 'adil',
+        name: 'アディル',
+        emoji: '🦍',
+        hp: 999999, // 圧倒的な体力
+        atk: 500, // 最強の物理攻撃
+        speed: 0.6, // 少し遅い
+        range: 40,
+        attackSpeed: 2.0,
+        color: '#111111', // 黒色
+        size: 85, // 大きい
+        money: 2000,
+        kb: 1,
+        requiresItem: true, // アイテムでのみ倒せる
     }
 ];
 
@@ -343,6 +358,7 @@ const STAGES = [
             { time: 25, type: 2, count: 2, interval: 4.0 },
             { time: 35, type: 3, count: 1, interval: 1.0 },
             { time: 45, type: 0, count: 6, interval: 1.2 },
+            { time: 60, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#3498db',
     },
@@ -357,6 +373,7 @@ const STAGES = [
             { time: 30, type: 2, count: 2, interval: 3.0 },
             { time: 42, type: 3, count: 2, interval: 3.0 },
             { time: 55, type: 4, count: 1, interval: 1.0 },
+            { time: 70, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#8e44ad',
     },
@@ -372,6 +389,7 @@ const STAGES = [
             { time: 42, type: 3, count: 3, interval: 2.0 },
             { time: 58, type: 4, count: 1, interval: 1.0 },
             { time: 70, type: 3, count: 2, interval: 2.0 },
+            { time: 85, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#1a1a2e',
     },
@@ -388,6 +406,7 @@ const STAGES = [
             { time: 60, type: 4, count: 1, interval: 1.0 },
             { time: 75, type: 4, count: 1, interval: 1.0 },
             { time: 90, type: 3, count: 5, interval: 1.2 },
+            { time: 105, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#0d0d0d',
     },
@@ -403,6 +422,7 @@ const STAGES = [
             { time: 45, type: 6, count: 3, interval: 2.5 },
             { time: 60, type: 1, count: 10, interval: 0.5 },
             { time: 70, type: 5, count: 5, interval: 1.0 },
+            { time: 85, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#7f8c8d',
     },
@@ -419,6 +439,7 @@ const STAGES = [
             { time: 55, type: 4, count: 2, interval: 2.0 },
             { time: 75, type: 3, count: 8, interval: 1.0 },
             { time: 90, type: 4, count: 3, interval: 1.0 },
+            { time: 105, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#c0392b',
     },
@@ -435,6 +456,7 @@ const STAGES = [
             { time: 55, type: 4, count: 3, interval: 2.5 },
             { time: 75, type: 5, count: 8, interval: 1.5 },
             { time: 90, type: 4, count: 4, interval: 2.0 },
+            { time: 110, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#34495e',
     },
@@ -451,6 +473,7 @@ const STAGES = [
             { time: 65, type: 5, count: 10, interval: 1.0 },
             { time: 85, type: 2, count: 8, interval: 1.0 },
             { time: 100, type: 4, count: 5, interval: 2.0 },
+            { time: 115, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#16a085',
     },
@@ -467,6 +490,7 @@ const STAGES = [
             { time: 75, type: 4, count: 6, interval: 1.8 },
             { time: 95, type: 3, count: 15, interval: 0.8 },
             { time: 110, type: 4, count: 7, interval: 1.5 },
+            { time: 125, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#8e44ad',
     },
@@ -484,6 +508,7 @@ const STAGES = [
             { time: 95, type: 4, count: 8, interval: 1.5 },
             { time: 115, type: 4, count: 4, interval: 1.0 },
             { time: 130, type: 3, count: 20, interval: 0.5 },
+            { time: 145, type: 7, count: 1, interval: 1.0 },
         ],
         bg: '#2c3e50',
     },
@@ -501,6 +526,7 @@ const STAGES = [
             { time: 105, type: 4, count: 15, interval: 1.0 },
             { time: 130, type: 3, count: 30, interval: 0.3 },
             { time: 150, type: 4, count: 20, interval: 0.8 },
+            { time: 165, type: 7, count: 2, interval: 10.0 }, // 最終面は2体
         ],
         bg: '#000000',
     },
@@ -781,9 +807,15 @@ class Battle {
             if (opp.state === 'dead') continue;
 
             // Cannon does 500 flat damage, ignores metal defense slightly (5 dmg to metal)
-            const dmg = opp.type.isMetal ? 5 : 500;
-            opp.hp -= dmg;
-            this.addDamageNumber(opp.x, this.groundY - opp.size, dmg, true);
+            let dmg = opp.type.isMetal ? 5 : 500;
+            if (opp.type.requiresItem) dmg = 0;
+
+            if (dmg > 0) {
+                opp.hp -= dmg;
+                this.addDamageNumber(opp.x, this.groundY - opp.size, dmg, true);
+            } else {
+                this.addEffect(opp.x, this.groundY - opp.size / 2, '🛡️', 0.5);
+            }
 
             if (opp.hp <= 0) {
                 opp.state = 'dead';
@@ -795,6 +827,42 @@ class Battle {
             } else {
                 opp.state = 'kb';
                 opp.kbTimer = 0.8; // Huge knockback
+            }
+        }
+    }
+
+    useItem() {
+        if (this.money < 1000) return;
+        this.money -= 1000;
+        this.addEffect(this.fieldWidth / 2, this.groundY - 150, '🍌 伝説のバナナ!! 🍌', 2.0);
+
+        let hit = false;
+        for (const opp of this.enemyUnits) {
+            if (opp.type.requiresItem && opp.state !== 'dead') {
+                opp.hp = 0;
+                opp.state = 'dead';
+                opp.deathTimer = 0;
+                this.addDamageNumber(opp.x, this.groundY - opp.size, 999999, true);
+                this.addEffect(opp.x, this.groundY - opp.size / 2, '💫', 0.8);
+                if (opp.type.money) {
+                    this.money = Math.min(CONFIG.maxMoney, this.money + opp.type.money);
+                    this.addEffect(opp.x, this.groundY - opp.size - 15, `+💰${opp.type.money}`, 1.0);
+                }
+                hit = true;
+            }
+        }
+
+        if (!hit) {
+            // Missed the boss, damage others
+            for (const opp of this.enemyUnits) {
+                if (opp.state !== 'dead') {
+                    opp.hp -= 2000;
+                    this.addDamageNumber(opp.x, this.groundY - opp.size, 2000, true);
+                    if (opp.hp <= 0) {
+                        opp.state = 'dead';
+                        opp.deathTimer = 0;
+                    }
+                }
             }
         }
     }
@@ -917,9 +985,14 @@ class Battle {
     }
 
     dealDamage(attacker, defender) {
-        const dmg = defender.type.isMetal ? 1 : attacker.atk;
-        defender.hp -= dmg;
-        this.addDamageNumber(defender.x, this.groundY - defender.size, dmg);
+        const dmg = defender.type.requiresItem ? 0 : (defender.type.isMetal ? 1 : attacker.atk);
+
+        if (dmg > 0) {
+            defender.hp -= dmg;
+            this.addDamageNumber(defender.x, this.groundY - defender.size, dmg);
+        } else {
+            this.addEffect(defender.x, this.groundY - defender.size / 2, '🛡️', 0.2);
+        }
 
         // Knockback check
         const hpThreshold = defender.maxHp - (defender.maxHp / defender.kb) * (defender.kb - defender.kbRemaining + 1);
@@ -1406,6 +1479,7 @@ class Game {
                 <div class="stage-stars">
                     ${[1, 2, 3].map(s => `<span class="${s <= stars ? 'star-on' : 'star-off'}">★</span>`).join('')}
                 </div>
+                ${stars > 0 ? '<div class="clear-stamp">CLEAR</div>' : ''}
             `;
 
             if (unlocked) {
@@ -1511,6 +1585,19 @@ class Game {
             }
         }
 
+        const itemBtn = document.getElementById('item-btn');
+        if (itemBtn) {
+            if (this.battle.money >= 1000) {
+                itemBtn.disabled = false;
+                itemBtn.style.opacity = '1';
+                itemBtn.style.cursor = 'pointer';
+            } else {
+                itemBtn.disabled = true;
+                itemBtn.style.opacity = '0.5';
+                itemBtn.style.cursor = 'not-allowed';
+            }
+        }
+
         const playerRatio = this.battle.playerBase.hp / this.battle.playerBase.maxHp;
         const enemyRatio = this.battle.enemyBase.hp / this.battle.enemyBase.maxHp;
 
@@ -1593,6 +1680,13 @@ class Game {
         if (cannonBtn) {
             cannonBtn.addEventListener('click', () => {
                 if (this.battle) this.battle.fireCannon();
+            });
+        }
+
+        const itemBtn = document.getElementById('item-btn');
+        if (itemBtn) {
+            itemBtn.addEventListener('click', () => {
+                if (this.battle) this.battle.useItem();
             });
         }
 
