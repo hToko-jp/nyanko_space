@@ -59,6 +59,7 @@
                 </div>
                 <div class="stage-name-display">
                     <span id="current-stage-name">ステージ1</span>
+                    <button id="sound-btn" class="sound-toggle-btn" title="効果音オン/オフ" type="button">🔊</button>
                 </div>
             </div>
             <div class="hud-right">
@@ -74,11 +75,54 @@
 
         <canvas id="game-canvas"></canvas>
 
+        <!-- ５年生のお道具箱 (School Item Drawer) -->
+        <div id="school-item-tray" class="school-item-tray" style="display: none;">
+            <div class="item-tray-header">
+                <span class="item-tray-title">🎒 ５年生のお道具箱</span>
+                <span class="item-tray-hint">※タップで使用</span>
+                <button id="close-tray-btn" class="tray-close-btn" type="button">✕</button>
+            </div>
+            <div class="item-tray-grid">
+                <button class="tray-item-btn" data-item="eraser" type="button" title="敵全体をチョーク煙幕で10秒スロー (キー: 7)">
+                    <span class="tray-item-emoji">🧽</span>
+                    <div class="tray-item-text">
+                        <span class="tray-item-name">黒板消し</span>
+                        <span class="tray-item-cost">💰 400円</span>
+                    </div>
+                    <span class="tray-item-desc">敵全体煙幕スロー</span>
+                </button>
+                <button class="tray-item-btn" data-item="recorder" type="button" title="味方全員が12秒間攻撃力1.5倍＆速度UP (キー: 8)">
+                    <span class="tray-item-emoji">🪈</span>
+                    <div class="tray-item-text">
+                        <span class="tray-item-name">リコーダー</span>
+                        <span class="tray-item-cost">💰 600円</span>
+                    </div>
+                    <span class="tray-item-desc">味方攻撃＆速度UP</span>
+                </button>
+                <button class="tray-item-btn" data-item="milk" type="button" title="味方全員と城のHP35%回復＆KB無効 (キー: 9)">
+                    <span class="tray-item-emoji">🥛</span>
+                    <div class="tray-item-text">
+                        <span class="tray-item-name">給食牛乳</span>
+                        <span class="tray-item-cost">💰 500円</span>
+                    </div>
+                    <span class="tray-item-desc">城＆味方HP35%回復</span>
+                </button>
+                <button class="tray-item-btn" data-item="banana" type="button" title="アディルを一撃昇天！ (キー: 0)">
+                    <span class="tray-item-emoji">🍌</span>
+                    <div class="tray-item-text">
+                        <span class="tray-item-name">伝説バナナ</span>
+                        <span class="tray-item-cost">💰 1000円</span>
+                    </div>
+                    <span class="tray-item-desc">アディル一撃昇天</span>
+                </button>
+            </div>
+        </div>
+
         <div id="unit-panel">
             <div class="unit-buttons" id="unit-buttons"></div>
             <div class="panel-controls">
                 <button id="cannon-btn" class="btn-control btn-cannon" disabled>💥 キャノン (0%)</button>
-                <button id="item-btn" class="btn-control btn-item" title="アイテム">🍌 バナナ (1000円)</button>
+                <button id="item-btn" class="btn-control btn-item" title="５年生のお道具箱を開く">🎒 どうぐ</button>
                 <button id="speed-btn" class="btn-control" title="速度変更">▶ x1</button>
                 <button id="pause-btn" class="btn-control" title="一時停止">⏸</button>
                 <button id="retreat-btn" class="btn-control btn-retreat" title="撤退">🏳️ 撤退</button>
@@ -130,7 +174,7 @@
                     <p>🐕 ところ</p>
                     <p>🐍 えりこ</p>
                     <p>🤖 みさき</p>
-                    <p>👿 テス</p>
+                    <p>👿 クリスティーン</p>
                     <p>🐉 もとこ</p>
                     <p>🐢 きょーとー</p>
                     <p>🦅 こーちょー</p>

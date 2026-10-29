@@ -12,6 +12,304 @@ const CONFIG = {
     canvasAspect: 16 / 9,
 };
 
+// ===== ５年生のお道具箱 (School Items) =====
+const SCHOOL_ITEMS = [
+    {
+        id: 'eraser',
+        name: '黒板消し',
+        emoji: '🧽',
+        cost: 400,
+        desc: '敵全体チョーク煙幕鈍足',
+        detail: '煙幕を撒き散らし、出現中の敵全員の移動＆攻撃速度を10秒間半減！'
+    },
+    {
+        id: 'recorder',
+        name: 'リコーダー',
+        emoji: '🪈',
+        cost: 600,
+        desc: '味方攻撃＆速度1.5倍',
+        detail: '勇気のマーチ演奏！12秒間味方全員の攻撃力1.5倍＆移動速度UP！'
+    },
+    {
+        id: 'milk',
+        name: '給食牛乳',
+        emoji: '🥛',
+        cost: 500,
+        desc: '城＆味方HP35%大回復',
+        detail: 'カルシウム超補給！味方全員と自城のHP35%回復＆KB無効！'
+    },
+    {
+        id: 'banana',
+        name: '伝説のバナナ',
+        emoji: '🍌',
+        cost: 1000,
+        desc: 'アディル一撃昇天！',
+        detail: '漆黒の王アディルを大好物で満腹にさせて即昇天！'
+    }
+];
+
+// ===== Web Audio API Sound Synthesizer =====
+class SoundFX {
+    constructor() {
+        this.ctx = null;
+        this.muted = localStorage.getItem('nyanko_sound_muted') === 'true';
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                this.ctx = new AudioCtx();
+            }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+        }
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        localStorage.setItem('nyanko_sound_muted', String(this.muted));
+        return !this.muted;
+    }
+
+    playSchoolChime() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        // Westminster Chime: B4, G4, A4, D4,  D4, A4, B4, G4
+        const notes = [
+            { f: 493.88, t: 0.05, d: 0.65 },
+            { f: 392.00, t: 0.65, d: 0.65 },
+            { f: 440.00, t: 1.25, d: 0.65 },
+            { f: 293.66, t: 1.85, d: 1.10 },
+            { f: 293.66, t: 2.85, d: 0.65 },
+            { f: 440.00, t: 3.45, d: 0.65 },
+            { f: 493.88, t: 4.05, d: 0.65 },
+            { f: 392.00, t: 4.65, d: 1.30 }
+        ];
+        const now = this.ctx.currentTime;
+        for (const n of notes) {
+            this.playBellTone(n.f, now + n.t, n.d);
+        }
+    }
+
+    playBellTone(freq, time, dur) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0.0001, time);
+        gain.gain.linearRampToValueAtTime(0.18, time + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(time);
+        osc.stop(time + dur);
+    }
+
+    playSiren() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        for (let i = 0; i < 4; i++) {
+            const t = now + i * 0.35;
+            osc.frequency.setValueAtTime(880, t);
+            osc.frequency.setValueAtTime(659, t + 0.17);
+        }
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 1.4);
+    }
+
+    playChalk() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.45);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1400, this.ctx.currentTime);
+        filter.Q.setValueAtTime(1.5, this.ctx.currentTime);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+    }
+
+    playRecorder() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        const now = this.ctx.currentTime;
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+            gain.gain.setValueAtTime(0.001, now + idx * 0.09);
+            gain.gain.linearRampToValueAtTime(0.2, now + idx * 0.09 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.22);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.09);
+            osc.stop(now + idx * 0.09 + 0.22);
+        });
+    }
+
+    playMilk() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const notes = [783.99, 1046.50, 1318.51, 1567.98];
+        const now = this.ctx.currentTime;
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.18, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.32);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.32);
+        });
+    }
+
+    playBanana() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(820, now + 0.28);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+
+    playLaser() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(900, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.55);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.6);
+    }
+
+    playCrit() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1400, now);
+        osc.frequency.exponentialRampToValueAtTime(320, now + 0.16);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+
+    playSpawn() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(380, now);
+        osc.frequency.exponentialRampToValueAtTime(760, now + 0.08);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    }
+
+    playWin() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        const now = this.ctx.currentTime;
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.14);
+            gain.gain.setValueAtTime(0.2, now + idx * 0.14);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.4);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.14);
+            osc.stop(now + idx * 0.14 + 0.4);
+        });
+    }
+
+    playLose() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const notes = [440, 415.3, 392, 369.99];
+        const now = this.ctx.currentTime;
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.22);
+            gain.gain.setValueAtTime(0.15, now + idx * 0.22);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.22 + 0.35);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.22);
+            osc.stop(now + idx * 0.22 + 0.35);
+        });
+    }
+}
+const SOUNDS = new SoundFX();
+
 // ===== Cat Unit Definitions =====
 const CAT_TYPES = [
     {
@@ -558,7 +856,248 @@ const STAGES = [
             { time: 105, type: 4, count: 15, interval: 1.0 },
             { time: 130, type: 3, count: 30, interval: 0.3 },
             { time: 150, type: 4, count: 20, interval: 0.8 },
-            { time: 165, type: 7, count: 2, interval: 10.0 }, // 最終面は2体
+            { time: 165, type: 7, count: 2, interval: 10.0 },
+        ],
+        bg: '#000000',
+    },
+    {
+        id: 16,
+        name: '波乱のプール開き',
+        baseHp: 65000,
+        moneyRate: 3.4,
+        waves: [
+            { time: 3, type: 0, count: 20, interval: 0.8 },
+            { time: 12, type: 1, count: 12, interval: 1.0 },
+            { time: 25, type: 2, count: 6, interval: 1.5 },
+            { time: 45, type: 3, count: 8, interval: 1.2 },
+            { time: 65, type: 6, count: 5, interval: 2.0 },
+            { time: 90, type: 4, count: 3, interval: 3.0 },
+            { time: 110, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#0984e3',
+    },
+    {
+        id: 17,
+        name: '灼熱のクラブ活動',
+        baseHp: 75000,
+        moneyRate: 3.5,
+        waves: [
+            { time: 3, type: 1, count: 18, interval: 0.7 },
+            { time: 15, type: 3, count: 12, interval: 1.0 },
+            { time: 30, type: 5, count: 10, interval: 1.2 },
+            { time: 50, type: 4, count: 5, interval: 2.0 },
+            { time: 70, type: 6, count: 6, interval: 1.8 },
+            { time: 95, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#d35400',
+    },
+    {
+        id: 18,
+        name: '抜き打ちの漢字50問テスト',
+        baseHp: 88000,
+        moneyRate: 3.6,
+        waves: [
+            { time: 3, type: 2, count: 8, interval: 1.2 },
+            { time: 15, type: 3, count: 15, interval: 0.8 },
+            { time: 35, type: 5, count: 12, interval: 1.2 },
+            { time: 55, type: 4, count: 6, interval: 2.0 },
+            { time: 80, type: 6, count: 8, interval: 1.5 },
+            { time: 105, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#2f3640',
+    },
+    {
+        id: 19,
+        name: '危険な家庭科調理実習',
+        baseHp: 100000,
+        moneyRate: 3.7,
+        waves: [
+            { time: 3, type: 0, count: 25, interval: 0.5 },
+            { time: 12, type: 1, count: 15, interval: 0.8 },
+            { time: 28, type: 2, count: 8, interval: 1.5 },
+            { time: 48, type: 4, count: 6, interval: 2.0 },
+            { time: 70, type: 5, count: 15, interval: 1.0 },
+            { time: 95, type: 6, count: 8, interval: 1.5 },
+            { time: 120, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#c0392b',
+    },
+    {
+        id: 20,
+        name: '保健室の誘惑',
+        baseHp: 115000,
+        moneyRate: 3.8,
+        waves: [
+            { time: 3, type: 1, count: 20, interval: 0.6 },
+            { time: 14, type: 3, count: 12, interval: 1.0 },
+            { time: 30, type: 6, count: 10, interval: 1.5 },
+            { time: 50, type: 4, count: 8, interval: 1.8 },
+            { time: 75, type: 5, count: 15, interval: 1.0 },
+            { time: 100, type: 4, count: 6, interval: 1.5 },
+            { time: 125, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#a29bfe',
+    },
+    {
+        id: 21,
+        name: '恐怖のPTA総会',
+        baseHp: 135000,
+        moneyRate: 4.0,
+        waves: [
+            { time: 3, type: 2, count: 12, interval: 1.0 },
+            { time: 15, type: 5, count: 15, interval: 1.2 },
+            { time: 35, type: 6, count: 12, interval: 1.2 },
+            { time: 55, type: 4, count: 8, interval: 1.5 },
+            { time: 80, type: 3, count: 20, interval: 0.7 },
+            { time: 105, type: 4, count: 8, interval: 1.2 },
+            { time: 130, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#6c5ce7',
+    },
+    {
+        id: 22,
+        name: '合唱コンクールの奇跡',
+        baseHp: 155000,
+        moneyRate: 4.1,
+        waves: [
+            { time: 3, type: 0, count: 30, interval: 0.4 },
+            { time: 15, type: 1, count: 20, interval: 0.6 },
+            { time: 32, type: 3, count: 15, interval: 1.0 },
+            { time: 52, type: 6, count: 12, interval: 1.2 },
+            { time: 75, type: 4, count: 10, interval: 1.5 },
+            { time: 100, type: 5, count: 18, interval: 1.0 },
+            { time: 125, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#fd79a8',
+    },
+    {
+        id: 23,
+        name: '激突！図書室の静寂',
+        baseHp: 180000,
+        moneyRate: 4.2,
+        waves: [
+            { time: 3, type: 2, count: 15, interval: 0.8 },
+            { time: 14, type: 5, count: 18, interval: 1.0 },
+            { time: 32, type: 6, count: 15, interval: 1.0 },
+            { time: 55, type: 4, count: 12, interval: 1.5 },
+            { time: 80, type: 3, count: 25, interval: 0.5 },
+            { time: 110, type: 4, count: 10, interval: 1.0 },
+            { time: 135, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#2d3436',
+    },
+    {
+        id: 24,
+        name: '真夏の避難訓練',
+        baseHp: 210000,
+        moneyRate: 4.3,
+        waves: [
+            { time: 3, type: 1, count: 25, interval: 0.5 },
+            { time: 12, type: 3, count: 20, interval: 0.7 },
+            { time: 30, type: 2, count: 12, interval: 1.0 },
+            { time: 50, type: 4, count: 12, interval: 1.2 },
+            { time: 75, type: 6, count: 15, interval: 1.0 },
+            { time: 100, type: 5, count: 20, interval: 0.8 },
+            { time: 130, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#e17055',
+    },
+    {
+        id: 25,
+        name: '給食室の総力戦',
+        baseHp: 250000,
+        moneyRate: 4.4,
+        waves: [
+            { time: 3, type: 0, count: 35, interval: 0.3 },
+            { time: 14, type: 2, count: 15, interval: 0.8 },
+            { time: 30, type: 5, count: 20, interval: 0.8 },
+            { time: 50, type: 6, count: 18, interval: 1.0 },
+            { time: 75, type: 4, count: 15, interval: 1.2 },
+            { time: 105, type: 3, count: 30, interval: 0.4 },
+            { time: 130, type: 4, count: 12, interval: 1.0 },
+            { time: 155, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#e67e22',
+    },
+    {
+        id: 26,
+        name: '修学旅行の夜・枕投げ',
+        baseHp: 300000,
+        moneyRate: 4.5,
+        waves: [
+            { time: 3, type: 3, count: 25, interval: 0.5 },
+            { time: 14, type: 1, count: 30, interval: 0.4 },
+            { time: 32, type: 6, count: 20, interval: 0.8 },
+            { time: 55, type: 5, count: 22, interval: 0.8 },
+            { time: 80, type: 4, count: 16, interval: 1.0 },
+            { time: 110, type: 3, count: 35, interval: 0.3 },
+            { time: 140, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#130e2e',
+    },
+    {
+        id: 27,
+        name: '暗闇の屋上・秘密基地',
+        baseHp: 350000,
+        moneyRate: 4.6,
+        waves: [
+            { time: 3, type: 2, count: 20, interval: 0.6 },
+            { time: 14, type: 6, count: 22, interval: 0.7 },
+            { time: 32, type: 5, count: 25, interval: 0.7 },
+            { time: 55, type: 4, count: 18, interval: 1.0 },
+            { time: 85, type: 4, count: 15, interval: 0.8 },
+            { time: 115, type: 3, count: 40, interval: 0.3 },
+            { time: 145, type: 7, count: 1, interval: 1.0 },
+        ],
+        bg: '#0b0c10',
+    },
+    {
+        id: 28,
+        name: '教頭先生の抜き打ち校則検査',
+        baseHp: 400000,
+        moneyRate: 4.7,
+        waves: [
+            { time: 3, type: 5, count: 20, interval: 0.8 },
+            { time: 12, type: 5, count: 20, interval: 0.6 },
+            { time: 30, type: 6, count: 20, interval: 0.8 },
+            { time: 50, type: 4, count: 20, interval: 1.0 },
+            { time: 80, type: 5, count: 25, interval: 0.6 },
+            { time: 110, type: 4, count: 18, interval: 0.8 },
+            { time: 140, type: 7, count: 2, interval: 8.0 },
+        ],
+        bg: '#7f8c8d',
+    },
+    {
+        id: 29,
+        name: '校長先生の最後の長い話',
+        baseHp: 450000,
+        moneyRate: 4.8,
+        waves: [
+            { time: 3, type: 6, count: 20, interval: 0.8 },
+            { time: 15, type: 3, count: 35, interval: 0.4 },
+            { time: 35, type: 6, count: 20, interval: 0.6 },
+            { time: 60, type: 4, count: 22, interval: 0.8 },
+            { time: 90, type: 5, count: 30, interval: 0.5 },
+            { time: 120, type: 4, count: 25, interval: 0.6 },
+            { time: 150, type: 7, count: 2, interval: 6.0 },
+        ],
+        bg: '#1e272e',
+    },
+    {
+        id: 30,
+        name: '卒業式〜最高学年へ！未来の伝説〜',
+        baseHp: 550000,
+        moneyRate: 5.0,
+        waves: [
+            { time: 3, type: 0, count: 40, interval: 0.2 },
+            { time: 12, type: 1, count: 30, interval: 0.3 },
+            { time: 25, type: 2, count: 20, interval: 0.5 },
+            { time: 40, type: 5, count: 30, interval: 0.5 },
+            { time: 60, type: 6, count: 25, interval: 0.6 },
+            { time: 85, type: 4, count: 30, interval: 0.6 },
+            { time: 115, type: 3, count: 50, interval: 0.2 },
+            { time: 145, type: 4, count: 35, interval: 0.5 },
+            { time: 170, type: 7, count: 3, interval: 8.0 },
         ],
         bg: '#000000',
     },
@@ -580,7 +1119,22 @@ const NEW_STAGE_NAMES = [
     '大掃除のワックスがけ',
     '伝説のバナナ争奪戦',
     '５年生最後の通知表',
-    '５年生の修了式〜そして伝説へ〜'
+    '５年生の修了式〜そして伝説へ〜',
+    '波乱のプール開き',
+    '灼熱のクラブ活動',
+    '抜き打ちの漢字50問テスト',
+    '危険な家庭科調理実習',
+    '保健室の誘惑',
+    '恐怖のPTA総会',
+    '合唱コンクールの奇跡',
+    '激突！図書室の静寂',
+    '真夏の避難訓練',
+    '給食室の総力戦',
+    '修学旅行の夜・枕投げ',
+    '暗闇の屋上・秘密基地',
+    '教頭先生の抜き打ち校則検査',
+    '校長先生の最後の長い話',
+    '卒業式〜最高学年へ！未来の伝説〜'
 ];
 NEW_STAGE_NAMES.forEach((name, idx) => {
     if (STAGES[idx]) STAGES[idx].name = name;
@@ -912,6 +1466,11 @@ class Unit {
         this.isBoss = !isCat && !!type.isBoss;
         this.isEnraged = false;
         this.enrageAuraTimer = 0;
+
+        // School items & gimmicks status
+        this.slowTimer = 0; // 黒板消し煙幕スロー
+        this.buffTimer = 0; // リコーダー演奏バフ
+        this.noKbTimer = 0; // 給食牛乳KB無効
     }
 
     getBounds() {
@@ -930,7 +1489,8 @@ class Battle {
         this.ctx = ctx;
 
         // State
-        this.playerBase = { hp: 5000, maxHp: 5000, x: 0 };
+        const basePlayerHp = 5000 + (stageData.id - 1) * 800;
+        this.playerBase = { hp: basePlayerHp, maxHp: basePlayerHp, x: 0 };
         this.enemyBase = { hp: stageData.baseHp, maxHp: stageData.baseHp, x: 0 };
         this.catUnits = [];
         this.enemyUnits = [];
@@ -968,6 +1528,15 @@ class Battle {
         this.screenShake = 0;
         this.bossCutin = null;
         this.bossCutinSeen = new Set();
+
+        // School Items & Gimmicks State
+        this.chalkSmokeTimer = 0;
+        this.recorderBuffTimer = 0;
+        this.schoolSleepTimer = (stageData.id === 10) ? 22 : 999999;
+        this.schoolSleepActive = 0;
+        this.weatherParticles = [];
+        this.initWeather();
+        this.initStageBanner();
     }
 
     initWaves() {
@@ -1026,9 +1595,13 @@ class Battle {
         this.stats.moneySpent += type.cost;
 
         const unit = new Unit(type, true, this.playerBase.x + CONFIG.baseWidth + 20);
+        if (this.recorderBuffTimer > 0) {
+            unit.buffTimer = this.recorderBuffTimer;
+        }
         this.catUnits.push(unit);
 
         // Spawn effect
+        SOUNDS.playSpawn();
         this.addEffect(unit.x, this.groundY - unit.size / 2, '✨', 0.5);
         return true;
     }
@@ -1036,6 +1609,9 @@ class Battle {
     spawnEnemy(typeIndex, statMultiplier = 1) {
         const type = ENEMY_TYPES[typeIndex];
         const unit = new Unit(type, false, this.enemyBase.x - CONFIG.baseWidth - 20, statMultiplier);
+        if (this.chalkSmokeTimer > 0) {
+            unit.slowTimer = this.chalkSmokeTimer;
+        }
         this.enemyUnits.push(unit);
         if (unit.isBoss && !this.bossCutinSeen.has(type.id)) {
             this.bossCutinSeen.add(type.id);
@@ -1050,6 +1626,7 @@ class Battle {
             duration: 2.4,
         };
         this.screenShake = 1.2;
+        SOUNDS.playSiren();
     }
 
     drawBossCutin() {
@@ -1113,8 +1690,8 @@ class Battle {
         ctx.textBaseline = 'middle';
         const blink = Math.floor(cut.timer * 8) % 2 === 0;
         ctx.fillStyle = blink ? '#ffeaa7' : '#ffffff';
-        ctx.fillText('⚠️ WARNING ⚠️   STRONG ENEMY APPROACHING   ⚠️ WARNING ⚠️', w / 2, h * 0.16 + bandH / 2);
-        ctx.fillText('⚠️ WARNING ⚠️   強敵ボス出現！総員戦闘配備！   ⚠️ WARNING ⚠️', w / 2, h * 0.78 + bandH / 2);
+        ctx.fillText('⚠️ WARNING ⚠️   先生・強敵ボス接近中！！   ⚠️ WARNING ⚠️', w / 2, h * 0.16 + bandH / 2);
+        ctx.fillText('⚠️ 警報発令 ⚠️   宿題を忘れた者は戦闘配備！！   ⚠️ 警報発令 ⚠️', w / 2, h * 0.78 + bandH / 2);
 
         // Center boss card
         const cardY = h * 0.48;
@@ -1217,6 +1794,46 @@ class Battle {
             }
         }
 
+        // Stage banner timer
+        if (this.stageBanner && this.stageBanner.timer > 0) {
+            this.stageBanner.timer -= dt;
+        }
+
+        // School items & gimmicks timers
+        if (this.chalkSmokeTimer > 0) {
+            this.chalkSmokeTimer -= dt;
+        }
+        if (this.recorderBuffTimer > 0) {
+            this.recorderBuffTimer -= dt;
+        }
+        if (this.stage.id === 10) {
+            this.schoolSleepTimer -= dt;
+            if (this.schoolSleepTimer <= 0) {
+                this.schoolSleepTimer = 25;
+                this.schoolSleepActive = 1.8;
+                this.addEffect(this.fieldWidth / 2, this.groundY - 140, '💤 校長先生の講話が長すぎてみんなウトウト…！', 2.0);
+            }
+            if (this.schoolSleepActive > 0) {
+                this.schoolSleepActive -= dt;
+            }
+        }
+        if (this.stage.id === 11) {
+            if (this.lightningTimer !== undefined) {
+                this.lightningTimer -= dt;
+                if (this.lightningTimer <= 0) {
+                    this.lightningTimer = 5 + Math.random() * 6;
+                    this.lightningFlash = 0.25;
+                    this.screenShake = 0.5;
+                }
+            }
+            if (this.lightningFlash > 0) {
+                this.lightningFlash -= dt;
+            }
+        }
+
+        // Update weather particles
+        this.updateWeather(dt);
+
         // Update units
         this.updateUnits(this.catUnits, this.enemyUnits, this.enemyBase, dt);
         this.updateUnits(this.enemyUnits, this.catUnits, this.playerBase, dt);
@@ -1281,6 +1898,7 @@ class Battle {
         this.cannonTimer = 0;
         this.cannonFiringTime = 0.6; // duration of laser beam
         this.stats.cannonUsed++;
+        SOUNDS.playLaser();
 
         // Huge screen-wide effect
         this.addEffect(this.fieldWidth / 2, this.groundY - 100, '🌋 5年生キャノン!! 🌋', 1.5);
@@ -1315,37 +1933,92 @@ class Battle {
     }
 
     useItem() {
-        if (this.money < 1000) return;
-        this.money -= 1000;
-        this.stats.bananaUsed++;
-        this.stats.moneySpent += 1000;
-        this.addEffect(this.fieldWidth / 2, this.groundY - 150, '🍌 伝説のバナナ!! 🍌', 2.0);
+        return this.useSchoolItem('banana');
+    }
 
-        let hit = false;
-        for (const opp of this.enemyUnits) {
-            if (opp.type.requiresItem && opp.state !== 'dead') {
-                opp.hp = 0;
-                opp.state = 'dead';
-                opp.deathTimer = 0;
-                this.addDamageNumber(opp.x, this.groundY - opp.size, 999999, true);
-                this.addEffect(opp.x, this.groundY - opp.size / 2, '💫', 0.8);
-                if (opp.type.money) {
-                    this.money = Math.min(CONFIG.maxMoney, this.money + opp.type.money);
-                    this.addEffect(opp.x, this.groundY - opp.size - 15, `+💰${opp.type.money}`, 1.0);
+    useSchoolItem(itemKey) {
+        const item = SCHOOL_ITEMS.find(it => it.id === itemKey);
+        if (!item) return false;
+        if (this.money < item.cost) {
+            this.addEffect(this.fieldWidth / 2, this.groundY - 80, '💰 お金が足りない！', 0.8);
+            return false;
+        }
+
+        this.money -= item.cost;
+        this.stats.moneySpent += item.cost;
+        this.stats.itemsUsed = this.stats.itemsUsed || { banana: 0, eraser: 0, recorder: 0, milk: 0 };
+        this.stats.itemsUsed[itemKey] = (this.stats.itemsUsed[itemKey] || 0) + 1;
+
+        if (itemKey === 'eraser') {
+            SOUNDS.playChalk();
+            this.chalkSmokeTimer = 8.0;
+            for (const opp of this.enemyUnits) {
+                opp.slowTimer = 10.0;
+            }
+            this.screenShake = 0.4;
+            this.addEffect(this.fieldWidth / 2, this.groundY - 140, '🧽 黒板消し煙幕！ 敵全体10秒スロー！', 2.2);
+        } else if (itemKey === 'recorder') {
+            SOUNDS.playRecorder();
+            this.recorderBuffTimer = 12.0;
+            for (const cat of this.catUnits) {
+                cat.buffTimer = 12.0;
+            }
+            this.addEffect(this.fieldWidth / 2, this.groundY - 140, '🪈 勇気のリコーダー演奏！ 攻撃＆速度1.5倍！', 2.2);
+        } else if (itemKey === 'milk') {
+            SOUNDS.playMilk();
+            const baseHeal = Math.floor(this.playerBase.maxHp * 0.35);
+            this.playerBase.hp = Math.min(this.playerBase.maxHp, this.playerBase.hp + baseHeal);
+            this.addEffect(this.playerBase.x + 30, this.groundY - 70, `+HP ${baseHeal} 💚`, 1.8);
+
+            for (const cat of this.catUnits) {
+                const heal = Math.floor(cat.maxHp * 0.4);
+                cat.hp = Math.min(cat.maxHp, cat.hp + heal);
+                cat.noKbTimer = 6.0;
+                this.addEffect(cat.x, this.groundY - cat.size - 10, `+${heal} 💚`, 1.2);
+            }
+            this.addEffect(this.fieldWidth / 2, this.groundY - 140, '🥛 給食牛乳カルシウムチャージ！ 全体大回復！', 2.2);
+        } else if (itemKey === 'banana') {
+            this.stats.bananaUsed++;
+            SOUNDS.playBanana();
+            this.addEffect(this.fieldWidth / 2, this.groundY - 150, '🍌 伝説のバナナ!! 🍌', 2.0);
+
+            let hit = false;
+            for (const opp of this.enemyUnits) {
+                if (opp.type.requiresItem && opp.state !== 'dead') {
+                    opp.hp = 0;
+                    opp.state = 'dead';
+                    opp.deathTimer = 0;
+                    this.addDamageNumber(opp.x, this.groundY - opp.size, 999999, true);
+                    this.addEffect(opp.x, this.groundY - opp.size / 2, '💫', 0.8);
+                    if (opp.type.money) {
+                        this.money = Math.min(CONFIG.maxMoney, this.money + opp.type.money);
+                        this.addEffect(opp.x, this.groundY - opp.size - 15, `+💰${opp.type.money}`, 1.0);
+                    }
+                    hit = true;
                 }
-                hit = true;
+            }
+
+            if (!hit) {
+                this.addEffect(this.fieldWidth / 2, this.groundY - 100, '💨 アディルがいなかった…', 1.0);
             }
         }
-
-        if (!hit) {
-            this.addEffect(this.fieldWidth / 2, this.groundY - 100, '💨 アディルがいなかった…', 1.0);
-        }
+        return true;
     }
 
     updateUnits(units, opponents, targetBase, dt) {
         for (const unit of units) {
             if (unit.state === 'dead') {
                 unit.deathTimer += dt;
+                continue;
+            }
+
+            // Timers
+            if (unit.slowTimer > 0) unit.slowTimer = Math.max(0, unit.slowTimer - dt);
+            if (unit.buffTimer > 0) unit.buffTimer = Math.max(0, unit.buffTimer - dt);
+            if (unit.noKbTimer > 0) unit.noKbTimer = Math.max(0, unit.noKbTimer - dt);
+
+            // Sleeping gimmick
+            if (this.schoolSleepActive > 0) {
                 continue;
             }
 
@@ -1397,10 +2070,20 @@ class Battle {
             // Once an attack starts, we lock the state to 'attack' until it finishes
             const isAttacking = unit.state === 'attack' && unit.attackTimer > 0;
 
+            // Effective modifiers
+            let effectiveSpeed = unit.speed;
+            if (this.stage.id === 5) effectiveSpeed *= 1.15; // 真冬の持久走
+            if (this.stage.id === 12) effectiveSpeed *= 1.25; // 大掃除のワックスがけ
+            if (unit.buffTimer > 0) effectiveSpeed *= 1.35; // リコーダー
+            if (unit.slowTimer > 0) effectiveSpeed *= 0.45; // 黒板消し煙幕
+
+            let attackDt = dt;
+            if (unit.slowTimer > 0) attackDt *= 0.55;
+
             if (isAttacking || inUnitRange || isColliding || inBaseRange) {
                 // Attack
                 unit.state = 'attack';
-                unit.attackTimer += dt;
+                unit.attackTimer += attackDt;
                 unit.walkCycle = 0;
 
                 // Deal damage at the midpoint of the attack animation
@@ -1414,6 +2097,7 @@ class Battle {
                     }
                     if (inBaseRange) {
                         let baseDmg = unit.atk;
+                        if (unit.buffTimer > 0) baseDmg = Math.floor(baseDmg * 1.5);
                         if (unit.type && unit.type.id === 'daizo') {
                             baseDmg = 0; // 大造じいさんは基地にはダメージを与えられない
                         }
@@ -1433,8 +2117,8 @@ class Battle {
             } else {
                 // Walk
                 unit.state = 'walk';
-                unit.x += dir * unit.speed * 60 * dt;
-                unit.walkCycle += dt * unit.speed * 3;
+                unit.x += dir * effectiveSpeed * 60 * dt;
+                unit.walkCycle += dt * effectiveSpeed * 3;
 
                 // Reset attack if we cleanly returned to walking
                 unit.attackTimer = 0;
@@ -1467,6 +2151,17 @@ class Battle {
 
     dealDamage(attacker, defender) {
         let dmg = attacker.atk;
+        if (attacker.buffTimer > 0) {
+            dmg = Math.floor(dmg * 1.5);
+        }
+
+        // Stage 3: 魔の算数テスト (ひらめきクリティカル)
+        if (this.stage.id === 3 && attacker.isCat && Math.random() < 0.18) {
+            dmg = Math.floor(dmg * 2.2);
+            this.addEffect(defender.x, this.groundY - defender.size - 20, '💡 ひらめいた！ CRITICAL!', 1.0);
+            this.screenShake = 0.35;
+            SOUNDS.playCrit();
+        }
 
         // 大造じいさんはメタル属性（教頭）以外にはダメージを与えられない
         if (attacker.type && attacker.type.id === 'daizo') {
@@ -1481,6 +2176,7 @@ class Battle {
             if (attacker.type && attacker.type.antiMetal) {
                 dmg = attacker.atk * 3; // クリティカル大ダメージ
                 this.addEffect(defender.x, this.groundY - defender.size - 20, '⚡CRITICAL!', 1.0);
+                SOUNDS.playCrit();
             } else {
                 dmg = 1; // メタルには通常1ダメージ
             }
@@ -1503,7 +2199,7 @@ class Battle {
 
         // Knockback check
         const hpThreshold = defender.maxHp - (defender.maxHp / defender.kb) * (defender.kb - defender.kbRemaining + 1);
-        if (defender.hp <= hpThreshold && defender.kbRemaining > 0) {
+        if (defender.hp <= hpThreshold && defender.kbRemaining > 0 && !(defender.noKbTimer > 0)) {
             defender.kbRemaining--;
             defender.state = 'kb';
             defender.kbTimer = 0.3;
@@ -1523,6 +2219,684 @@ class Battle {
         }
     }
 
+    initWeather() {
+        this.weatherParticles = [];
+        const id = this.stage.id;
+        const w = (this.canvas && this.canvas.width) || 1200;
+        const gy = this.groundY || 350;
+
+        if (id === 1) { // 桜舞う校門前
+            for (let i = 0; i < 35; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    size: 6 + Math.random() * 8,
+                    vx: 25 + Math.random() * 35,
+                    vy: 20 + Math.random() * 25,
+                    rot: Math.random() * Math.PI * 2,
+                    rotSpeed: 1 + Math.random() * 2,
+                    color: Math.random() < 0.6 ? '#ffb7b2' : '#ffccd5'
+                });
+            }
+        } else if (id === 2) { // 放課後の運動場 (砂煙)
+            for (let i = 0; i < 25; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - 5 - Math.random() * 25,
+                    size: 4 + Math.random() * 8,
+                    vx: -(20 + Math.random() * 30),
+                    vy: (Math.random() - 0.5) * 8,
+                    alpha: 0.15 + Math.random() * 0.25
+                });
+            }
+        } else if (id === 3) { // 魔の算数テスト (舞うテスト用紙・数式)
+            const symbols = ['💯', '0点', '×', '1+1=?', '📐', '✏️'];
+            for (let i = 0; i < 18; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: symbols[i % symbols.length],
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: 25 + Math.random() * 30,
+                    rot: (Math.random() - 0.5) * 0.4,
+                    rotSpeed: (Math.random() - 0.5) * 1.5,
+                    size: 16 + Math.random() * 6
+                });
+            }
+        } else if (id === 4) { // 争奪！給食の揚げパン (湯気)
+            for (let i = 0; i < 20; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * (gy * 0.7),
+                    size: 8 + Math.random() * 14,
+                    vy: -(25 + Math.random() * 25),
+                    vx: (Math.random() - 0.5) * 15,
+                    alpha: 0.2 + Math.random() * 0.3
+                });
+            }
+        } else if (id === 5) { // 真冬の持久走大会 (雪吹雪)
+            for (let i = 0; i < 55; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    size: 2 + Math.random() * 4,
+                    vx: -(80 + Math.random() * 100),
+                    vy: 40 + Math.random() * 40,
+                    alpha: 0.4 + Math.random() * 0.5
+                });
+            }
+        } else if (id === 6) { // 雨の日の体育館 (雨線)
+            for (let i = 0; i < 45; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    len: 12 + Math.random() * 15,
+                    speed: 350 + Math.random() * 200,
+                    alpha: 0.3 + Math.random() * 0.4
+                });
+            }
+        } else if (id === 7) { // 怪談！夜の理科室 (人魂)
+            for (let i = 0; i < 12; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    baseY: 40 + Math.random() * (gy - 80),
+                    radius: 10 + Math.random() * 14,
+                    phase: Math.random() * Math.PI * 2,
+                    color: Math.random() < 0.5 ? '#00cec9' : '#a29bfe'
+                });
+            }
+        } else if (id === 8) { // 白熱の運動会 (赤白紙吹雪)
+            for (let i = 0; i < 40; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    w: 7 + Math.random() * 5,
+                    h: 4 + Math.random() * 3,
+                    color: Math.random() < 0.5 ? '#ff4757' : '#ffffff',
+                    vx: (Math.random() - 0.5) * 30,
+                    vy: 30 + Math.random() * 40,
+                    rot: Math.random() * Math.PI * 2,
+                    rotSpeed: 2 + Math.random() * 3
+                });
+            }
+        } else if (id === 10) { // 長すぎる校長講話 (Zzz)
+            for (let i = 0; i < 15; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * gy,
+                    text: i % 2 === 0 ? '💤' : 'Zzz...',
+                    vy: -(15 + Math.random() * 20),
+                    vx: (Math.random() - 0.5) * 10,
+                    alpha: 0.3 + Math.random() * 0.5
+                });
+            }
+        } else if (id === 11) { // 嵐の林間学校
+            this.lightningTimer = 4 + Math.random() * 5;
+            this.lightningFlash = 0;
+            for (let i = 0; i < 50; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    len: 16 + Math.random() * 18,
+                    speed: 450 + Math.random() * 250,
+                    alpha: 0.45 + Math.random() * 0.4
+                });
+            }
+        } else if (id === 12) { // 大掃除のワックスがけ (ピカピカ床)
+            for (let i = 0; i < 28; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - 3 + Math.random() * 15,
+                    phase: Math.random() * Math.PI * 2,
+                    size: 8 + Math.random() * 8
+                });
+            }
+        } else if (id === 14) { // 最後の通知表 (花丸)
+            for (let i = 0; i < 7; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: 40 + Math.random() * (gy - 80),
+                    text: '💮',
+                    size: 30 + Math.random() * 16,
+                    rot: (Math.random() - 0.5) * 0.3,
+                    vy: -(8 + Math.random() * 10)
+                });
+            }
+        } else if (id === 15 || id === 30) { // 修了式・卒業式 (虹色＆ゴールド祝祭紙吹雪)
+            const colors = ['#ffd700', '#ff7675', '#fdcb6e', '#55efc4', '#81ecec', '#a29bfe', '#ffeaa7'];
+            const count = id === 30 ? 65 : 50;
+            for (let i = 0; i < count; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    w: 8 + Math.random() * 6,
+                    h: 5 + Math.random() * 4,
+                    color: colors[i % colors.length],
+                    vx: (Math.random() - 0.5) * 45,
+                    vy: 35 + Math.random() * 50,
+                    rot: Math.random() * Math.PI * 2,
+                    rotSpeed: 2 + Math.random() * 4,
+                    isCap: id === 30 && i % 10 === 0
+                });
+            }
+        } else if (id === 16) { // プール開き (水泡)
+            for (let i = 0; i < 30; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * (gy * 0.8),
+                    size: 6 + Math.random() * 10,
+                    vy: -(25 + Math.random() * 30),
+                    vx: (Math.random() - 0.5) * 20,
+                    alpha: 0.35 + Math.random() * 0.45
+                });
+            }
+        } else if (id === 17) { // クラブ活動 (陽炎・炎)
+            for (let i = 0; i < 25; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * (gy * 0.6),
+                    text: '🔥',
+                    size: 14 + Math.random() * 8,
+                    vy: -(20 + Math.random() * 25),
+                    vx: (Math.random() - 0.5) * 15
+                });
+            }
+        } else if (id === 18) { // 漢字テスト (舞う漢字)
+            const kanjis = ['漢', '字', '勉', '強', '百', '点', '筆', '書'];
+            for (let i = 0; i < 20; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: kanjis[i % kanjis.length],
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: 25 + Math.random() * 30,
+                    rot: (Math.random() - 0.5) * 0.4,
+                    rotSpeed: (Math.random() - 0.5) * 1.5,
+                    size: 18 + Math.random() * 6
+                });
+            }
+        } else if (id === 19) { // 調理実習 (フライパンと煙)
+            const kitchen = ['🍳', '🍳', '🧂', '🍲'];
+            for (let i = 0; i < 18; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * (gy * 0.7),
+                    text: kitchen[i % kitchen.length],
+                    size: 16 + Math.random() * 6,
+                    vy: -(20 + Math.random() * 20),
+                    vx: (Math.random() - 0.5) * 15
+                });
+            }
+        } else if (id === 20) { // 保健室 (お薬)
+            const meds = ['💊', '🩹', '🌡️'];
+            for (let i = 0; i < 16; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: meds[i % meds.length],
+                    size: 16 + Math.random() * 6,
+                    vy: 15 + Math.random() * 20,
+                    vx: (Math.random() - 0.5) * 10,
+                    rot: (Math.random() - 0.5) * 0.5,
+                    rotSpeed: 1
+                });
+            }
+        } else if (id === 21) { // PTA総会 (ベルマーク)
+            for (let i = 0; i < 20; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: '🏷️',
+                    size: 15 + Math.random() * 6,
+                    vy: 20 + Math.random() * 25,
+                    vx: (Math.random() - 0.5) * 20,
+                    rot: Math.random(),
+                    rotSpeed: 1.5
+                });
+            }
+        } else if (id === 22) { // 合唱コンクール (音符)
+            const notes = ['🎵', '🎶', '🎼', '✨'];
+            for (let i = 0; i < 28; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * gy,
+                    text: notes[i % notes.length],
+                    size: 16 + Math.random() * 8,
+                    vy: -(20 + Math.random() * 25),
+                    vx: (Math.random() - 0.5) * 20
+                });
+            }
+        } else if (id === 23) { // 図書室 (本)
+            const books = ['📖', '📚', '📕'];
+            for (let i = 0; i < 18; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: books[i % books.length],
+                    size: 16 + Math.random() * 6,
+                    vy: 20 + Math.random() * 25,
+                    vx: (Math.random() - 0.5) * 15,
+                    rot: (Math.random() - 0.5) * 0.4,
+                    rotSpeed: 1
+                });
+            }
+        } else if (id === 24) { // 避難訓練 (警告)
+            for (let i = 0; i < 18; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: '⚠️',
+                    size: 16 + Math.random() * 6,
+                    vy: 20 + Math.random() * 20,
+                    vx: (Math.random() - 0.5) * 15
+                });
+            }
+        } else if (id === 25) { // 給食室総力戦
+            const food = ['🍛', '🍲', '🥄', '🍴'];
+            for (let i = 0; i < 20; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * (gy * 0.7),
+                    text: food[i % food.length],
+                    size: 16 + Math.random() * 8,
+                    vy: -(22 + Math.random() * 25),
+                    vx: (Math.random() - 0.5) * 20
+                });
+            }
+        } else if (id === 26) { // 修学旅行 (枕投げ・羽毛)
+            for (let i = 0; i < 25; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: '🪶',
+                    size: 16 + Math.random() * 8,
+                    vy: 18 + Math.random() * 20,
+                    vx: (Math.random() - 0.5) * 25,
+                    rot: Math.random(),
+                    rotSpeed: 1.2
+                });
+            }
+        } else if (id === 27) { // 屋上秘密基地 (星空)
+            for (let i = 0; i < 30; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: 10 + Math.random() * (gy * 0.8),
+                    phase: Math.random() * Math.PI * 2,
+                    size: 10 + Math.random() * 10
+                });
+            }
+        } else if (id === 28) { // 校則検査
+            const inspect = ['🔍', '📋', '📏'];
+            for (let i = 0; i < 18; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * gy,
+                    text: inspect[i % inspect.length],
+                    size: 16 + Math.random() * 6,
+                    vy: 20 + Math.random() * 20,
+                    vx: (Math.random() - 0.5) * 15
+                });
+            }
+        } else if (id === 29) { // 校長最後の話
+            for (let i = 0; i < 20; i++) {
+                this.weatherParticles.push({
+                    x: Math.random() * w,
+                    y: gy - Math.random() * gy,
+                    text: i % 2 === 0 ? '💤' : 'Zzz...',
+                    vy: -(15 + Math.random() * 22),
+                    vx: (Math.random() - 0.5) * 12,
+                    alpha: 0.35 + Math.random() * 0.5
+                });
+            }
+        }
+    }
+
+    updateWeather(dt) {
+        const w = this.canvas.width;
+        const gy = this.groundY;
+        const id = this.stage.id;
+
+        for (const p of this.weatherParticles) {
+            if (p.vx !== undefined) p.x += p.vx * dt;
+            if (p.vy !== undefined) p.y += p.vy * dt;
+            if (p.rot !== undefined && p.rotSpeed !== undefined) {
+                p.rot += p.rotSpeed * dt;
+            }
+
+            if (id === 6 || id === 11) { // Rain streaks
+                p.y += p.speed * dt;
+                p.x -= p.speed * 0.25 * dt;
+                if (p.y > gy) {
+                    p.y = -10;
+                    p.x = Math.random() * (w + 200);
+                }
+            } else if (id === 1) { // Sakura
+                if (p.x > w + 20) p.x = -20;
+                if (p.y > gy) {
+                    p.y = -10;
+                    p.x = Math.random() * w;
+                }
+            } else if (id === 5) { // Blizzard
+                if (p.x < -20) p.x = w + 20;
+                if (p.y > gy) {
+                    p.y = -10;
+                    p.x = Math.random() * w;
+                }
+            } else if (id === 4 || id === 10 || id === 14 || id === 16 || id === 17 || id === 19 || id === 22 || id === 25 || id === 29) { // Rising steam / bubbles / notes
+                if (p.y < 10) {
+                    p.y = gy - 10;
+                    p.x = Math.random() * w;
+                }
+            } else {
+                if (p.y > gy + 20) {
+                    p.y = -10;
+                    p.x = Math.random() * w;
+                }
+                if (p.x < -20) p.x = w + 20;
+                else if (p.x > w + 20) p.x = -20;
+            }
+        }
+    }
+
+    drawWeather(ctx, w, gy) {
+        const id = this.stage.id;
+
+        for (const p of this.weatherParticles) {
+            ctx.save();
+            if (id === 1) { // Sakura
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size * 0.7, p.size * 0.35, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (id === 2) { // Sand puffs
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = '#f39c12';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (id === 16) { // Pool water bubbles
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = '#74b9ff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            } else if (id === 27) { // Rooftop night sparkles
+                const time = performance.now() / 1000;
+                const sparkle = 0.5 + 0.5 * Math.sin(time * 5 + p.phase);
+                ctx.fillStyle = `rgba(255, 255, 255, ${sparkle * 0.9})`;
+                ctx.font = `${Math.floor(p.size)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('✨', p.x, p.y);
+            } else if (id === 3 || id === 10 || id === 14 || id === 17 || id === 18 || id === 19 || id === 20 || id === 21 || id === 22 || id === 23 || id === 24 || id === 25 || id === 26 || id === 28 || id === 29) { // Text emoji / formulas
+                ctx.font = `${Math.floor(p.size || 16)}px sans-serif`;
+                ctx.textAlign = 'center';
+                if (p.rot) {
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillText(p.text, 0, 0);
+                } else {
+                    ctx.fillText(p.text, p.x, p.y);
+                }
+            } else if (id === 4) { // Steam bubbles
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (id === 5) { // Snow
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (id === 6 || id === 11) { // Rain
+                ctx.globalAlpha = p.alpha;
+                ctx.strokeStyle = id === 11 ? '#74b9ff' : '#81ecec';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - p.len * 0.25, p.y + p.len);
+                ctx.stroke();
+            } else if (id === 7) { // Ghost will-o'-wisp
+                const time = performance.now() / 1000;
+                const y = p.baseY + Math.sin(time * 3 + p.phase) * 15;
+                const rad = ctx.createRadialGradient(p.x, y, 2, p.x, y, p.radius);
+                rad.addColorStop(0, p.color);
+                rad.addColorStop(0.6, p.color + '44');
+                rad.addColorStop(1, 'transparent');
+                ctx.fillStyle = rad;
+                ctx.beginPath();
+                ctx.arc(p.x, y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (id === 8 || id === 15 || id === 30) { // Confetti
+                if (p.isCap) {
+                    ctx.font = '22px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🎓', p.x, p.y);
+                } else {
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                }
+            } else if (id === 12) { // Wax sparkle
+                const time = performance.now() / 1000;
+                const sparkle = 0.5 + 0.5 * Math.sin(time * 6 + p.phase);
+                ctx.fillStyle = `rgba(255, 234, 167, ${sparkle * 0.8})`;
+                ctx.font = `${Math.floor(p.size)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('✨', p.x, p.y);
+            }
+            ctx.restore();
+        }
+    }
+
+    initStageBanner() {
+        const stageGimmicks = {
+            1: '🌸 ５年生の大冒険がここから始まる！',
+            2: '⚽ チャイムが鳴る前に敵を蹴散らせ！',
+            3: '📝 算数テスト！ひらめきクリティカル率UP！',
+            4: '🥖 給食の揚げパン争奪戦！油断大敵！',
+            5: '❄️ 極寒持久走！寒さで全員の足が速くなる！(+15%)',
+            6: '🌧️ 外は雨…体育館の熱き決戦！',
+            7: '👻 理科室の怪談！人体模型に気をつけろ！',
+            8: '🎌 運動会騎馬戦！赤組白組の総力戦！',
+            9: '⚠️ 職員室の呼び出し！先生たちの圧を越えろ！',
+            10: '💤 長すぎる校長講話！定期的に睡魔が襲う…！？',
+            11: '⚡ 嵐の林間学校！雷光と大雨の夜！',
+            12: '✨ ワックスがけ！床ツルツルで移動速度+25%！',
+            13: '🍌 伝説のバナナ争奪戦！アディル警戒！',
+            14: '💮 ５年生最後の通知表！努力の成果を見せろ！',
+            15: '🎊 ５年生の修了式！仲間とともに伝説へ！',
+            16: '🏊 波乱のプール開き！水しぶきをあげて進め！',
+            17: '🔥 灼熱のクラブ活動！熱気で攻撃速度UP！',
+            18: '✍️ 漢字50問テスト！とめ・はね・はらいに注意！',
+            19: '🍳 家庭科調理実習！強火の炎と煙に気をつけろ！',
+            20: '💊 保健室の誘惑！甘い誘惑を振り切れ！',
+            21: '🦚 恐怖のPTA総会！親たちの熱い視線！',
+            22: '🎵 合唱コンクールの奇跡！美しい歌声で味方強化！',
+            23: '📚 図書室の静寂！大声禁止！忍び足で突撃！',
+            24: '🚨 真夏の避難訓練！おはしもの精神で突破せよ！',
+            25: '🍲 給食室の総力戦！大盛りのごちそう争奪戦！',
+            26: '🛏️ 修学旅行の夜！枕投げの嵐が吹き荒れる！',
+            27: '🌌 暗闇の屋上！秘密基地で迎撃せよ！',
+            28: '🔍 抜き打ち校則検査！大造じいさん出番じゃ！',
+            29: '🦅 校長先生の最後の長い話！究極の睡魔に耐えろ！',
+            30: '👑 栄光の卒業式！最高学年へ、真の伝説になれ！'
+        };
+        this.stageBanner = {
+            title: `🏫 第${this.stage.id}関: ${this.stage.name}`,
+            desc: stageGimmicks[this.stage.id] || 'みんなで協力して勝利をつかもう！',
+            timer: 3.5,
+            duration: 3.5
+        };
+    }
+
+    drawStageBanner(ctx, w, gy) {
+        if (!this.stageBanner || this.stageBanner.timer <= 0) return;
+        const b = this.stageBanner;
+        const progress = b.timer / b.duration;
+        let alpha = 1;
+        if (progress > 0.8) alpha = (1 - progress) / 0.2;
+        else if (progress < 0.2) alpha = progress / 0.2;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        const bannerW = Math.min(420, w * 0.88);
+        const bannerH = 62;
+        const bx = (w - bannerW) / 2;
+        const by = 16;
+
+        // Blackboard plaque
+        ctx.fillStyle = 'rgba(18, 48, 32, 0.94)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, by, bannerW, bannerH, 12);
+        else ctx.rect(bx, by, bannerW, bannerH);
+        ctx.fill();
+
+        // Wood / gold border
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Chalk inner line
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 5, by + 5, bannerW - 10, bannerH - 10);
+
+        // Title
+        ctx.font = 'bold 15px "M PLUS Rounded 1c", sans-serif';
+        ctx.fillStyle = '#ffeaa7';
+        ctx.textAlign = 'center';
+        ctx.fillText(b.title, w / 2, by + 25);
+
+        // Desc
+        ctx.font = 'bold 12px "M PLUS Rounded 1c", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(b.desc, w / 2, by + 47);
+
+        ctx.restore();
+    }
+
+    drawSky(ctx, w, gy) {
+        const id = this.stage.id;
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, gy);
+
+        if (id === 1) { // 桜舞う校門前
+            skyGrad.addColorStop(0, '#1a3263');
+            skyGrad.addColorStop(0.5, '#406882');
+            skyGrad.addColorStop(1, '#ffc6b8');
+        } else if (id === 2) { // 夕焼けの運動場
+            skyGrad.addColorStop(0, '#3a1c40');
+            skyGrad.addColorStop(0.45, '#c0392b');
+            skyGrad.addColorStop(1, '#f39c12');
+        } else if (id === 3) { // 黒板・算数テスト
+            skyGrad.addColorStop(0, '#061a12');
+            skyGrad.addColorStop(0.5, '#133926');
+            skyGrad.addColorStop(1, '#23593d');
+        } else if (id === 4) { // 給食の揚げパン
+            skyGrad.addColorStop(0, '#2c1209');
+            skyGrad.addColorStop(0.5, '#78281f');
+            skyGrad.addColorStop(1, '#d35400');
+        } else if (id === 5) { // 真冬の持久走
+            skyGrad.addColorStop(0, '#192a56');
+            skyGrad.addColorStop(0.5, '#40739e');
+            skyGrad.addColorStop(1, '#dff9fb');
+        } else if (id === 6) { // 雨の日の体育館
+            skyGrad.addColorStop(0, '#1e272e');
+            skyGrad.addColorStop(0.55, '#2f3542');
+            skyGrad.addColorStop(1, '#57606f');
+        } else if (id === 7) { // 怪談・夜の理科室
+            skyGrad.addColorStop(0, '#05030d');
+            skyGrad.addColorStop(0.5, '#140c26');
+            skyGrad.addColorStop(1, '#0a2e23');
+        } else if (id === 8) { // 運動会
+            skyGrad.addColorStop(0, '#0f2042');
+            skyGrad.addColorStop(0.5, '#1e5f8a');
+            skyGrad.addColorStop(1, '#ff7675');
+        } else if (id === 10 || id === 29) { // 校長講話
+            skyGrad.addColorStop(0, '#1f1338');
+            skyGrad.addColorStop(0.5, '#481c78');
+            skyGrad.addColorStop(1, '#fd79a8');
+        } else if (id === 11) { // 嵐の林間学校
+            skyGrad.addColorStop(0, '#03050a');
+            skyGrad.addColorStop(0.5, '#091224');
+            skyGrad.addColorStop(1, '#1b2d56');
+        } else if (id === 12) { // ワックスがけ
+            skyGrad.addColorStop(0, '#0a1d4a');
+            skyGrad.addColorStop(0.5, '#1b4d8a');
+            skyGrad.addColorStop(1, '#70a1ff');
+        } else if (id === 16) { // プール開き
+            skyGrad.addColorStop(0, '#0c2461');
+            skyGrad.addColorStop(0.5, '#00a8ff');
+            skyGrad.addColorStop(1, '#7ed6df');
+        } else if (id === 17) { // クラブ活動
+            skyGrad.addColorStop(0, '#2c0e00');
+            skyGrad.addColorStop(0.5, '#b71540');
+            skyGrad.addColorStop(1, '#e55039');
+        } else if (id === 18) { // 漢字テスト
+            skyGrad.addColorStop(0, '#1e272e');
+            skyGrad.addColorStop(0.5, '#2f3542');
+            skyGrad.addColorStop(1, '#747d8c');
+        } else if (id === 19) { // 調理実習
+            skyGrad.addColorStop(0, '#3d1308');
+            skyGrad.addColorStop(0.5, '#eb2f06');
+            skyGrad.addColorStop(1, '#f6b93b');
+        } else if (id === 20) { // 保健室
+            skyGrad.addColorStop(0, '#2c1654');
+            skyGrad.addColorStop(0.5, '#6c5ce7');
+            skyGrad.addColorStop(1, '#a29bfe');
+        } else if (id === 21) { // PTA総会
+            skyGrad.addColorStop(0, '#1b1464');
+            skyGrad.addColorStop(0.5, '#574b90');
+            skyGrad.addColorStop(1, '#f8a5c2');
+        } else if (id === 22) { // 合唱コンクール
+            skyGrad.addColorStop(0, '#3b114d');
+            skyGrad.addColorStop(0.5, '#8e44ad');
+            skyGrad.addColorStop(1, '#f368e0');
+        } else if (id === 23) { // 図書室
+            skyGrad.addColorStop(0, '#1e272e');
+            skyGrad.addColorStop(0.5, '#353b48');
+            skyGrad.addColorStop(1, '#57606f');
+        } else if (id === 24) { // 避難訓練
+            skyGrad.addColorStop(0, '#4a1005');
+            skyGrad.addColorStop(0.5, '#ea2027');
+            skyGrad.addColorStop(1, '#ffc048');
+        } else if (id === 25) { // 給食室
+            skyGrad.addColorStop(0, '#2d1702');
+            skyGrad.addColorStop(0.5, '#e67e22');
+            skyGrad.addColorStop(1, '#f1c40f');
+        } else if (id === 26) { // 修学旅行・枕投げ
+            skyGrad.addColorStop(0, '#0a0618');
+            skyGrad.addColorStop(0.5, '#1e1338');
+            skyGrad.addColorStop(1, '#341f97');
+        } else if (id === 27) { // 暗闇の屋上
+            skyGrad.addColorStop(0, '#05050d');
+            skyGrad.addColorStop(0.5, '#0e153a');
+            skyGrad.addColorStop(1, '#222f3e');
+        } else if (id === 28) { // 教頭校則検査
+            skyGrad.addColorStop(0, '#1e272e');
+            skyGrad.addColorStop(0.5, '#535c68');
+            skyGrad.addColorStop(1, '#95a5a6');
+        } else if (id === 30) { // 卒業式・真の伝説
+            skyGrad.addColorStop(0, '#050014');
+            skyGrad.addColorStop(0.5, '#2d0854');
+            skyGrad.addColorStop(1, '#781682');
+        } else { // 宇宙・深淵ステージ
+            skyGrad.addColorStop(0, '#060512');
+            skyGrad.addColorStop(0.6, '#0b0924');
+            skyGrad.addColorStop(1, '#161338');
+        }
+
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, w, gy);
+    }
+
     draw() {
         this.ctx.save();
         if (this.screenShake > 0) {
@@ -1539,13 +2913,8 @@ class Battle {
         // Clear
         ctx.clearRect(0, 0, w, h);
 
-        // Sky - Cosmic deep space gradient
-        const skyGrad = ctx.createLinearGradient(0, 0, 0, gy);
-        skyGrad.addColorStop(0, '#060512');
-        skyGrad.addColorStop(0.6, '#0b0924');
-        skyGrad.addColorStop(1, '#161338');
-        ctx.fillStyle = skyGrad;
-        ctx.fillRect(0, 0, w, gy);
+        // Sky - Stage-specific atmosphere
+        this.drawSky(ctx, w, gy);
 
         // Nebula glow with stage color accent
         ctx.save();
@@ -1566,6 +2935,9 @@ class Battle {
 
         // Moon mountains / asteroid horizon (bg decoration)
         this.drawSpaceHills(ctx, w, gy);
+
+        // Weather atmospheric particles (Sakura, snow, rain, test papers, etc.)
+        this.drawWeather(ctx, w, gy);
 
         // Ground - Lunar / Cosmic surface
         const groundGrad = ctx.createLinearGradient(0, gy, 0, h);
@@ -1660,6 +3032,26 @@ class Battle {
             }
             ctx.restore();
         }
+
+        // Chalk Smoke Haze Overlay
+        if (this.chalkSmokeTimer > 0) {
+            ctx.save();
+            const smokeAlpha = Math.min(0.24, this.chalkSmokeTimer * 0.05);
+            ctx.fillStyle = `rgba(240, 240, 255, ${smokeAlpha})`;
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+        }
+
+        // Lightning flash
+        if (this.lightningFlash > 0) {
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.85, this.lightningFlash * 3.5)})`;
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+        }
+
+        // Stage introduction blackboard plaque
+        this.drawStageBanner(ctx, w, gy);
 
         // Paused overlay
         if (this.paused) {
@@ -2059,6 +3451,29 @@ class Battle {
             ctx.fillRect(hpX, hpY, hpW * hpRatio, hpH);
         }
 
+        // School status effects icons
+        if (unit.state !== 'dead') {
+            const badgeY = by - s * 0.5 - 12;
+            if (unit.buffTimer > 0) {
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillStyle = '#ffd700';
+                ctx.fillText('♪', bx + (unit.isCat ? 16 : -16), badgeY);
+            }
+            if (unit.slowTimer > 0) {
+                ctx.font = '12px sans-serif';
+                ctx.fillText('💨', bx, badgeY - 12);
+            }
+            if (unit.noKbTimer > 0) {
+                ctx.font = '12px sans-serif';
+                ctx.fillText('🛡️', bx, y + 2);
+            }
+            if (this.schoolSleepActive > 0) {
+                ctx.font = 'bold 15px sans-serif';
+                ctx.fillStyle = '#ffeaa7';
+                ctx.fillText('💤', bx, badgeY - 16);
+            }
+        }
+
         ctx.restore();
     }
 
@@ -2137,6 +3552,11 @@ class Game {
         if (screen) screen.classList.add('active');
         this.state.screen = name;
 
+        if (name !== 'battle') {
+            const tray = document.getElementById('school-item-tray');
+            if (tray) tray.style.display = 'none';
+        }
+
         if (name === 'stage') {
             this.renderStageSelect();
         }
@@ -2196,6 +3616,9 @@ class Game {
 
         this.battle = new Battle(stageData, this.canvas, this.ctx);
         this.battle.resize();
+
+        // Play Westminster School Chime
+        SOUNDS.playSchoolChime();
 
         // Update HUD
         document.getElementById('current-stage-name').textContent = `${stageData.id}. ${stageData.name}`;
@@ -2280,15 +3703,30 @@ class Game {
 
         const itemBtn = document.getElementById('item-btn');
         if (itemBtn) {
-            if (this.battle.money >= 1000) {
+            itemBtn.textContent = '🎒 どうぐ';
+            if (this.battle.money >= 400) {
                 itemBtn.disabled = false;
+                itemBtn.classList.add('can-buy');
                 itemBtn.style.opacity = '1';
                 itemBtn.style.cursor = 'pointer';
             } else {
-                itemBtn.disabled = true;
-                itemBtn.style.opacity = '0.5';
-                itemBtn.style.cursor = 'not-allowed';
+                itemBtn.classList.remove('can-buy');
+                itemBtn.style.opacity = '0.75';
+                itemBtn.style.cursor = 'pointer';
             }
+        }
+
+        // Update item tray buttons if tray is open
+        const tray = document.getElementById('school-item-tray');
+        if (tray && tray.style.display !== 'none') {
+            const buttons = tray.querySelectorAll('.tray-item-btn');
+            buttons.forEach(btn => {
+                const itemKey = btn.getAttribute('data-item');
+                const item = SCHOOL_ITEMS.find(it => it.id === itemKey);
+                if (item) {
+                    btn.disabled = this.battle.money < item.cost;
+                }
+            });
         }
 
         const playerRatio = this.battle.playerBase.hp / this.battle.playerBase.maxHp;
@@ -2326,6 +3764,11 @@ class Game {
         if (!this.battle) return;
 
         const isWin = this.battle.result === 'win';
+        if (isWin) {
+            SOUNDS.playWin();
+        } else {
+            SOUNDS.playLose();
+        }
 
         // Calculate stars based on HP remaining
         let stars = 0;
@@ -2359,6 +3802,11 @@ class Game {
         this.state.globalStats.moneySpent += this.battle.stats.moneySpent;
         this.state.globalStats.cannonUsed += this.battle.stats.cannonUsed;
         this.state.globalStats.bananaUsed += this.battle.stats.bananaUsed;
+        if (this.battle.stats.itemsUsed) {
+            this.state.globalStats.eraserUsed = (this.state.globalStats.eraserUsed || 0) + (this.battle.stats.itemsUsed.eraser || 0);
+            this.state.globalStats.recorderUsed = (this.state.globalStats.recorderUsed || 0) + (this.battle.stats.itemsUsed.recorder || 0);
+            this.state.globalStats.milkUsed = (this.state.globalStats.milkUsed || 0) + (this.battle.stats.itemsUsed.milk || 0);
+        }
         this.state.globalStats.playTimeTotal += this.battle.time;
         this.state.saveStats();
 
@@ -2377,6 +3825,7 @@ class Game {
         const statsContent = document.getElementById('endroll-stats');
         const stats = this.state.globalStats;
         const timeStr = `${Math.floor(stats.playTimeTotal / 60)}分${String(Math.floor(stats.playTimeTotal % 60)).padStart(2, '0')}秒`;
+        const totalItems = (stats.bananaUsed || 0) + (stats.eraserUsed || 0) + (stats.recorderUsed || 0) + (stats.milkUsed || 0);
 
         statsContent.innerHTML = `
             <h2>🎊 あなたの戦績 🎊</h2>
@@ -2385,7 +3834,7 @@ class Game {
                 <p>🎒 召喚した5年生: ${stats.unitsSpawned} 人</p>
                 <p>💰 使ったお金: ${Math.floor(stats.moneySpent)} 円</p>
                 <p>💥 キャノン発射回数: ${stats.cannonUsed} 回</p>
-                <p>🍌 バナナ使用回数: ${stats.bananaUsed} 回</p>
+                <p>🎒 お道具箱使用回数: ${totalItems} 回</p>
             </div>
         `;
 
@@ -2402,6 +3851,25 @@ class Game {
 
     // ===== Event Bindings =====
     bindEvents() {
+        // Audio unlocking on gesture
+        const unlockAudio = () => {
+            SOUNDS.init();
+        };
+        window.addEventListener('click', unlockAudio, { passive: true });
+        window.addEventListener('keydown', unlockAudio, { passive: true });
+
+        // Sound toggle button in HUD
+        const soundBtn = document.getElementById('sound-btn');
+        if (soundBtn) {
+            soundBtn.textContent = SOUNDS.muted ? '🔇' : '🔊';
+            soundBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const unmuted = SOUNDS.toggleMute();
+                soundBtn.textContent = unmuted ? '🔊' : '🔇';
+                if (unmuted) SOUNDS.playSpawn();
+            });
+        }
+
         // Title screen
         document.getElementById('start-btn').addEventListener('click', () => {
             this.showScreen('stage');
@@ -2430,10 +3898,37 @@ class Game {
             });
         }
 
+        // School Item Tray toggle
         const itemBtn = document.getElementById('item-btn');
-        if (itemBtn) {
-            itemBtn.addEventListener('click', () => {
-                if (this.battle) this.battle.useItem();
+        const tray = document.getElementById('school-item-tray');
+        const closeTrayBtn = document.getElementById('close-tray-btn');
+
+        if (itemBtn && tray) {
+            itemBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = tray.style.display !== 'none';
+                tray.style.display = isOpen ? 'none' : 'block';
+            });
+        }
+
+        if (closeTrayBtn && tray) {
+            closeTrayBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                tray.style.display = 'none';
+            });
+        }
+
+        // Tray item buttons
+        if (tray) {
+            const buttons = tray.querySelectorAll('.tray-item-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const itemKey = btn.getAttribute('data-item');
+                    if (this.battle && itemKey) {
+                        this.battle.useSchoolItem(itemKey);
+                    }
+                });
             });
         }
 
@@ -2493,9 +3988,24 @@ class Game {
             if (this.state.screen !== 'battle' || !this.battle) return;
 
             const num = parseInt(e.key);
-            if (num >= 1 && num <= 5) {
+            if (num >= 1 && num <= 6) {
                 this.battle.spawnCat(num - 1);
+            } else if (num === 7) {
+                this.battle.useSchoolItem('eraser');
+            } else if (num === 8) {
+                this.battle.useSchoolItem('recorder');
+            } else if (num === 9) {
+                this.battle.useSchoolItem('milk');
+            } else if (num === 0 || e.key.toLowerCase() === 'b') {
+                this.battle.useSchoolItem('banana');
+            } else if (e.key.toLowerCase() === 'c') {
+                this.battle.fireCannon();
+            } else if (e.key.toLowerCase() === 'i') {
+                if (tray) tray.style.display = (tray.style.display === 'none') ? 'block' : 'none';
+            } else if (e.key.toLowerCase() === 'm') {
+                if (soundBtn) soundBtn.click();
             }
+
             if (e.key === ' ') {
                 e.preventDefault();
                 this.battle.paused = !this.battle.paused;
